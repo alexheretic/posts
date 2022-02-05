@@ -6,7 +6,7 @@
 <meta name=referrer content="no-referrer-when-downgrade">
 <title>Game years - alexheretic posts</title>
 <meta name=description content="In 2017 I quit my job to make a PC programming puzzle game Robo Instructus.
-One aspect in particular I worked on in some depth was text rendering. Robo Instructus has a lot of text & there just wasn&rsquo;t a libraries that could perform as I needed, particularly compiled in debug mode (and I&rsquo;m not waiting for rust &ndash;release compiles after each code change!).
+One aspect in particular I worked on in some depth was text rendering. Robo Instructus has a lot of text & there just wasn&rsquo;t the libraries in the Rust ecosystem that could perform as I needed, particularly compiled in debug mode (and I&rsquo;m not waiting for rust &ndash;release compiles after each code change!).
 So I took over maintenance of rusttype and fixed my issues with it & its &ldquo;gpu cache&rdquo; module.">
 <link rel=icon type=image/x-icon href=https://alexheretic.github.io/favicon.ico>
 <link rel=apple-touch-icon-precomposed href=https://alexheretic.github.io/favicon.png>
@@ -14,14 +14,14 @@ So I took over maintenance of rusttype and fixed my issues with it & its &ldquo;
 <script src=https://alexheretic.github.io/js/script.min.510c781c39dbb21b4c76d85c82e2bdf4689220adbb7cd61e49e9d293e442fb42.js type=text/javascript integrity="sha256-UQx4HDnbshtMdthcguK99GiSIK27fNYeSenSk+RC+0I="></script>
 <meta property="og:title" content="Game years">
 <meta property="og:description" content="In 2017 I quit my job to make a PC programming puzzle game Robo Instructus.
-One aspect in particular I worked on in some depth was text rendering. Robo Instructus has a lot of text & there just wasn&rsquo;t a libraries that could perform as I needed, particularly compiled in debug mode (and I&rsquo;m not waiting for rust &ndash;release compiles after each code change!).
+One aspect in particular I worked on in some depth was text rendering. Robo Instructus has a lot of text & there just wasn&rsquo;t the libraries in the Rust ecosystem that could perform as I needed, particularly compiled in debug mode (and I&rsquo;m not waiting for rust &ndash;release compiles after each code change!).
 So I took over maintenance of rusttype and fixed my issues with it & its &ldquo;gpu cache&rdquo; module.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://alexheretic.github.io/posts/games/"><meta property="article:section" content="posts">
 <meta name=twitter:card content="summary">
 <meta name=twitter:title content="Game years">
 <meta name=twitter:description content="In 2017 I quit my job to make a PC programming puzzle game Robo Instructus.
-One aspect in particular I worked on in some depth was text rendering. Robo Instructus has a lot of text & there just wasn&rsquo;t a libraries that could perform as I needed, particularly compiled in debug mode (and I&rsquo;m not waiting for rust &ndash;release compiles after each code change!).
+One aspect in particular I worked on in some depth was text rendering. Robo Instructus has a lot of text & there just wasn&rsquo;t the libraries in the Rust ecosystem that could perform as I needed, particularly compiled in debug mode (and I&rsquo;m not waiting for rust &ndash;release compiles after each code change!).
 So I took over maintenance of rusttype and fixed my issues with it & its &ldquo;gpu cache&rdquo; module.">
 </head>
 <body>
@@ -59,7 +59,7 @@ So I took over maintenance of rusttype and fixed my issues with it & its &ldquo;
 <div class="content e-content">
 <p>In 2017 I quit my job to make a PC programming puzzle game <a href=https://www.roboinstruct.us><strong>Robo Instructus</strong></a>.</p>
 <p><img src=steam-robo-instructus.webp alt></p>
-<p>One aspect in particular I worked on in some depth was <strong>text rendering</strong>. Robo Instructus has a lot of text & there just wasn&rsquo;t a libraries that could perform as I needed, particularly compiled in debug mode <em>(and I&rsquo;m not waiting for rust &ndash;release compiles after each code change!)</em>.</p>
+<p>One aspect in particular I worked on in some depth was <strong>text rendering</strong>. Robo Instructus has a lot of text & there just wasn&rsquo;t the libraries in the Rust ecosystem that could perform as I needed, particularly compiled in debug mode <em>(and I&rsquo;m not waiting for rust &ndash;release compiles after each code change!)</em>.</p>
 <p>So I took over maintenance of <a href=https://gitlab.redox-os.org/redox-os/rusttype>rusttype</a> and fixed my issues with it & its &ldquo;gpu cache&rdquo; module. I eventually rewrote it as <a href=https://github.com/alexheretic/ab-glyph>ab-glyph</a>. With that as a base I also wrote the <a href=https://github.com/alexheretic/glyph-brush>glyph-brush</a> crates which handle layout, clever caching and optimise the process of getting text strings into vertices pointing a subtextures on your GPU.</p>
 <p>My open source libs allowed me to handle the profusion of text in my game, I&rsquo;ve also seen them used in other rust game projects & engines which is nice! However, text rendering is surprisingly deep & complex so I&rsquo;ve no doubt superior tools will appear in the rust ecosystem in time.</p>
 <p>I wrote about some of my text rendering adventures on the game blog:</p>
