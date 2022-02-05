@@ -1,0 +1,68 @@
+baseURL = "https://alexheretic.github.io"
+languageCode = "en-gb"
+title = "alexheretic posts"
+theme = "anubis"
+paginate = 10
+# disqusShortname: "yourdiscussshortname"
+# googleAnalytics: "G-12345"
+enableRobotsTXT = true
+# enableGitInfo = true
+
+[frontmatter]
+  date = [':filename', ':default']
+
+# [[menu.main]]
+# identifier = "about"
+# name = "About"
+# title = "About"
+# url = "/"
+# weight = 0
+
+# [[menu.main]]
+# identifier = "posts"
+# name = "Posts"
+# title = "Posts"
+# url = "/posts/"
+# weight = 0
+
+[params]
+author = "Alex Butler"
+# email = "mail@example.org"
+avatar = "/images/me.webp"
+description = ""
+dateFormat = "2006-01-02"
+paginationSinglePost = true
+style = "dark"
+readMore = true
+disableSummary = false
+copyCodeButton = true
+rssAsSocialIcon = true
+utterancesRepo = ""
+utterancesTheme = ""
+utterancesIssue = ""
+utterancesLabel = ""
+
+# [params.isso]
+# enabled = true
+# data = "https://comments.example.com/"
+# jsLocation = "https://comments.example.com/js/embed.min.js"
+# css = true
+# lang = "de"
+# replyToSelf = true
+# requireAuthor = true
+# requireEmail = true
+# id = "thread-id"
+# avatar = true
+# avatar-bg = "#f0f0f0"
+
+# [params.webmentions]
+# url = "https://yourdomain.com/webemntions/receive"
+# login = "hugo-theme-anubis"
+# pingback = true
+
+[[params.social]]
+id = "github"
+name = "alexheretic"
+
+[markup.goldmark.renderer]
+unsafe = true
