@@ -1,4 +1,103 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>alexheretic posts</title><link>https://alexheretic.github.io/</link><description>alexheretic posts</description><generator>Hugo -- gohugo.io</generator><language>en-gb</language><lastBuildDate>Sun, 06 Feb 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://alexheretic.github.io/index.xml" rel="self" type="application/rss+xml"/><item><title>AV1 encoding: SVT-AV1 &amp; VMAF</title><link>https://alexheretic.github.io/posts/av1-p1/</link><pubDate>Sun, 06 Feb 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/av1-p1/</guid><description>&lt;p>I&amp;rsquo;ve been experimenting with av1 video encoding for a while now. Av1 is a royalty free video codec set to replace existing codecs with better quality and/or lower bitrates. Support for it is somewhat decent now. Back when I first tried it I found the encoding speed (using the reference encoder libaom) to be just too slow.&lt;/p>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>alexheretic posts</title><link>https://alexheretic.github.io/</link><description>alexheretic posts</description><generator>Hugo -- gohugo.io</generator><language>en-gb</language><lastBuildDate>Wed, 09 Feb 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://alexheretic.github.io/index.xml" rel="self" type="application/rss+xml"/><item><title>AV1 encoding: ab-av1</title><link>https://alexheretic.github.io/posts/ab-av1/</link><pubDate>Wed, 09 Feb 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/ab-av1/</guid><description>&lt;p>In &lt;a href="https://alexheretic.github.io/posts/av1-p1">my previous post&lt;/a> I looked at video encoding using svt-av1 with &lt;strong>crf&lt;/strong> &amp;amp; &lt;strong>preset&lt;/strong> settings and using VMAF to rate the resultant quality. Av1 encoding is reasonably fast now, but encoding a full video then checking the VMAF potentially multiple times to find a good crf &amp;amp; preset&amp;hellip; that is going to be &lt;em>not so fast&lt;/em>.&lt;/p>
+&lt;h2 id="sample-encoding" >Sample encoding
+&lt;span>
+&lt;a href="#sample-encoding">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>My answer was to cut a small section of the &lt;em>vid.mp4&lt;/em> original video, say 20s long, and encode that. It&amp;rsquo;s obviously much faster encoding a short clip, it&amp;rsquo;s also similarly much faster to measure the VMAF. From the clip we can calculate/guess the size of the fully encoded output too. However, the short clip may not be representative of the full video and produce inaccurate VMAF/size.&lt;/p>
+&lt;p>But we can improve the accuracy by taking multiple samples considering all of them. It&amp;rsquo;s still way faster to encode &amp;amp; VMAF a bunch of 20s samples than to do the full video.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">vid.mp4
++--------------------------------------------------------------------------------+
+| |A| |B| |C| |
++--------------------------------------------------------------------------------+
+| | |
+v v v
+cut 20s vid.a.mp4 vid.b.mp4 vid.c.mp4
+| | |
+v v v
+encode vid.a.av1.mp4 vid.b.av1.mp4 vid.c.av1.mp4
+&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>Cut &lt;em>vid.mp4&lt;/em> into 3 20s samples spaced throughout the full video (a, b &amp;amp; c). This is done with ffmpeg and is a comparatively instant operation.&lt;/li>
+&lt;li>Encode each sample using svt-av1.&lt;/li>
+&lt;li>Calculate VMAF score for each sample.&lt;/li>
+&lt;/ul>
+&lt;p>Then from the samples we can calculate the mean VMAF and size diff. We can use this to predict what the full video size &amp;amp; VMAF would be after a (potentially lengthy) full encode.&lt;/p>
+&lt;p>While it&amp;rsquo;s easy enough to cut a sample using ffmpeg the whole process got complicated enough that I wrote a CLI program to help me.&lt;/p>
+&lt;h2 id="ab-av1" >ab-av1
+&lt;span>
+&lt;a href="#ab-av1">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>&lt;strong>ab-av1&lt;/strong> (&lt;a href="https://github.com/alexheretic/ab-av1#readme">github&lt;/a>, &lt;a href="https://aur.archlinux.org/packages/ab-av1">AUR&lt;/a>) is a rust CLI binary that I wrote to handle sample encoding &lt;em>(and more)&lt;/em>. It calls out to ffmpeg &amp;amp; svt-av1 as child processes to do the actual cutting, encoding and VMAFing.&lt;/p>
+&lt;p>ab-av1 has functionality split into subcommands. The first one I wrote handles sample encoding.&lt;/p>
+&lt;h3 id="ab-av1-sample-encode" >ab-av1 sample-encode
+&lt;span>
+&lt;a href="#ab-av1-sample-encode">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h3>&lt;blockquote>
+&lt;p>Encode short video samples of an input using provided crf &amp;amp; preset. This is much quicker than full encode/vmaf run.&lt;/p>
+&lt;/blockquote>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">ab-av1 sample-encode [OPTIONS] -i &amp;lt;INPUT&amp;gt; --crf &amp;lt;CRF&amp;gt; --preset &amp;lt;PRESET&amp;gt;
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Let&amp;rsquo;s give it a bash on the same &lt;em>vid.mp4&lt;/em> we used previously.&lt;/p>
+&lt;p>&lt;video src="ab-av1-sample-encode.av1.mp4" poster="ab-av1-sample-encode.avif" playsinline controls>&lt;/video>&lt;/p>
+&lt;p>So from the 3 samples we can predict VMAF &lt;strong>96.36&lt;/strong> and a &lt;strong>59% encoded size&lt;/strong>. Since already fully encoded this video with these settings we know that real result was VMAF &lt;strong>96.04&lt;/strong> with &lt;strong>66%&lt;/strong> size. So we can see the predictions are indeed approximate. But the big difference is we did our prediction in &lt;strong>19 seconds&lt;/strong> vs ~13 minutes.&lt;/p>
+&lt;p>We can always up the sample count if we suspect our video to be more variable. E.g. if I&amp;rsquo;d used 8 samples above it would have taken 47 seconds to predict VMAF &lt;strong>96.04&lt;/strong> with &lt;strong>68%&lt;/strong> size, which is &lt;em>very&lt;/em> close to the truth and still a lot faster than encoding the whole thing.&lt;/p>
+&lt;p>With &lt;strong>sample-encode&lt;/strong> we now have a fast &amp;amp; convenient way to how analyse any svt-av1 crf and preset setting. We can now start using it to search for the highest crf that achieves a given VMAF score. Naturally ab-av1 has a subcommand for this.&lt;/p>
+&lt;h3 id="ab-av1-crf-search" >ab-av1 crf-search
+&lt;span>
+&lt;a href="#ab-av1-crf-search">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h3>&lt;blockquote>
+&lt;p>Interpolated binary search using sample-encode to find the best crf value delivering &lt;strong>min-vmaf&lt;/strong> &amp;amp; &lt;strong>max-encoded-percent&lt;/strong>.&lt;/p>
+&lt;/blockquote>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">ab-av1 crf-search [OPTIONS] -i &amp;lt;INPUT&amp;gt; --preset &amp;lt;PRESET&amp;gt;
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Let&amp;rsquo;s try it out by searching for the best crf for &lt;em>vid.mp4&lt;/em> to get VMAF 94.&lt;/p>
+&lt;p>&lt;img src="ab-av1-crf-search.png" alt="">&lt;/p>
+&lt;p>The command called sample-encode 4 times as it searched for the highest crf to satisfy our VMAF constraint. It tells us that if we can up our crf to &lt;strong>36&lt;/strong> to get our desired quality. Higher crf means our output is will be even smaller. It also predicts how long the full encode will take, ~6 minutes, which we already know is pretty close to the truth.&lt;/p>
+&lt;p>Because sample-encode itself is so fast the entire crf-search took only around a minute. Of course this will slow down lower preset, but it will always be hugely proportionally quicker than doing full encodes.&lt;/p>
+&lt;h2 id="evaluating-svt-av1-presets" >Evaluating svt-av1 presets
+&lt;span>
+&lt;a href="#evaluating-svt-av1-presets">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>ab-av1 provides a way to take an objective look at svt-av1 presets and to do it in &lt;em>a single human lifetime&lt;/em>. We already know lower presets are higher quality and take longer, but how high and how long?&lt;/p>
+&lt;p>Well presets 4 and lower are &lt;em>very&lt;/em> slow indeed. It&amp;rsquo;s also true that all presets produce roughly the same size output on a given crf. So we need to get a VMAF score to show the true value of the lower ones.&lt;/p>
+&lt;p>&lt;strong>crf-search&lt;/strong> can do this, if the preset gives better quality we should be able to find a higher crf value to satisfy our VMAF constraint.&lt;/p>
+&lt;p>&lt;img src="ab-av1-presets.png" alt="" title="For presets under 4 even the sample encodes take forever">&lt;/p>
+&lt;p>And indeed this is the case. We can use higher crf values to achieve VMAF 94 as we use lower presets. From this example preset &lt;strong>6&lt;/strong> seems a good compromise between speed and quality.&lt;/p>
+&lt;h2 id="ab-av1-extras" >ab-av1: extras
+&lt;span>
+&lt;a href="#ab-av1-extras">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>&lt;strong>sample-encode&lt;/strong> &amp;amp; &lt;strong>crf-search&lt;/strong> are the &amp;ldquo;guts&amp;rdquo; of ab-av1, but it also comes with some other commands that make use of, or can be used alongside, those. They are at least more ergonomic that using ffmpeg directly and have nice progress bars.&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>auto-encode&lt;/strong> &lt;em>Automatically determine the best crf to deliver the min-vmaf and use it to encode a video.&lt;/em>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">ab-av1 auto-encode [OPTIONS] -i &amp;lt;INPUT&amp;gt; --preset &amp;lt;PRESET&amp;gt;
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>&lt;strong>encode&lt;/strong> &lt;em>Simple invocation of ffmpeg &amp;amp; SvtAv1EncApp to encode a video.&lt;/em>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">ab-av1 encode [OPTIONS] -i &amp;lt;INPUT&amp;gt; --crf &amp;lt;CRF&amp;gt; --preset &amp;lt;PRESET&amp;gt;
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>&lt;strong>vmaf&lt;/strong> &lt;em>Simple full calculation of VMAF score distorted file vs original file.&lt;/em>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">ab-av1 vmaf --original &amp;lt;ORIGINAL&amp;gt; --distorted &amp;lt;DISTORTED&amp;gt;
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;/ul>
+&lt;p>If you have ideas to improve ab-av1, come on over and raise an issue at &lt;a href="https://github.com/alexheretic/ab-av1">alexheretic/ab-av1&lt;/a>.&lt;/p>
+&lt;h2 id="further-reading-av1an" >Further reading: av1an
+&lt;span>
+&lt;a href="#further-reading-av1an">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>You should also be aware of the more ambitious project &lt;a href="https://github.com/master-of-zen/Av1an">av1an&lt;/a>, it&amp;rsquo;s also a rust CLI wrapper that controls child processes. It also supports encoding to a &amp;ldquo;target-quality&amp;rdquo; VMAF score. However, I found it&amp;rsquo;s VMAF analysis to be too slow for my patience, hence my investigation into sample encoding &amp;amp; VMAF. I also find svt-av1 to do good enough threading on it&amp;rsquo;s own, so don&amp;rsquo;t benefit too much from the chunk-based concurrent encoding av1an provides &lt;em>(though libaom &amp;amp; other encoders are perhaps a different story)&lt;/em>.&lt;/p></description></item><item><title>AV1 encoding: SVT-AV1 &amp; VMAF</title><link>https://alexheretic.github.io/posts/av1-p1/</link><pubDate>Sun, 06 Feb 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/av1-p1/</guid><description>&lt;p>I&amp;rsquo;ve been experimenting with av1 video encoding for a while now. Av1 is a royalty free video codec set to replace existing codecs with better quality and/or lower bitrates. Support for it is somewhat decent now. Back when I first tried it I found the encoding speed (using the reference encoder libaom) to be just too slow.&lt;/p>
 &lt;p>However, I later read about the &lt;a href="https://gitlab.com/AOMediaCodec/SVT-AV1">svt-av1&lt;/a> encoder over at &lt;a href="https://www.phoronix.com">phoronix&lt;/a> which offers much faster encoding. More recently svt-av1 &lt;strong>v0.9&lt;/strong> has released and &lt;a href="https://www.phoronix.com/scan.php?page=article&amp;amp;item=svt-av1-09&amp;amp;num=1">is even faster&lt;/a>. So I think we&amp;rsquo;re at the point where av1 encoding is now fast enough for mortals like me to actually use.&lt;/p>
 &lt;h2 id="re-encoding-h264--friends" >Re-encoding h264 &amp;amp; friends
 &lt;span>

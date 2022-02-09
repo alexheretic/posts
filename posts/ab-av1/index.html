@@ -1,0 +1,185 @@
+<!doctype html><html lang=en-gb data-theme>
+<head>
+<meta charset=utf-8>
+<meta name=HandheldFriendly content="True">
+<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=referrer content="no-referrer-when-downgrade">
+<title>AV1 encoding: ab-av1 - alexheretic posts</title>
+<meta name=description content="In my previous post I looked at video encoding using svt-av1 with crf & preset settings and using VMAF to rate the resultant quality. Av1 encoding is reasonably fast now, but encoding a full video then checking the VMAF potentially multiple times to find a good crf & preset&mldr; that is going to be not so fast.
+Sample encoding     My answer was to cut a small section of the vid.">
+<link rel=icon type=image/x-icon href=https://alexheretic.github.io/favicon.ico>
+<link rel=apple-touch-icon-precomposed href=https://alexheretic.github.io/favicon.png>
+<link rel=stylesheet href=https://alexheretic.github.io/css/style.min.63aba568b2393a8f5a364a508001b05c9412a603d1a0a69bd50f9944649f9c56.css integrity="sha256-Y6ulaLI5Oo9aNkpQgAGwXJQSpgPRoKab1Q+ZRGSfnFY=">
+<script src=https://alexheretic.github.io/js/script.min.510c781c39dbb21b4c76d85c82e2bdf4689220adbb7cd61e49e9d293e442fb42.js type=text/javascript integrity="sha256-UQx4HDnbshtMdthcguK99GiSIK27fNYeSenSk+RC+0I="></script>
+<meta property="og:title" content="AV1 encoding: ab-av1">
+<meta property="og:description" content="In my previous post I looked at video encoding using svt-av1 with crf & preset settings and using VMAF to rate the resultant quality. Av1 encoding is reasonably fast now, but encoding a full video then checking the VMAF potentially multiple times to find a good crf & preset&mldr; that is going to be not so fast.
+Sample encoding     My answer was to cut a small section of the vid.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://alexheretic.github.io/posts/ab-av1/"><meta property="article:section" content="posts">
+<meta name=twitter:card content="summary">
+<meta name=twitter:title content="AV1 encoding: ab-av1">
+<meta name=twitter:description content="In my previous post I looked at video encoding using svt-av1 with crf & preset settings and using VMAF to rate the resultant quality. Av1 encoding is reasonably fast now, but encoding a full video then checking the VMAF potentially multiple times to find a good crf & preset&mldr; that is going to be not so fast.
+Sample encoding     My answer was to cut a small section of the vid.">
+</head>
+<body>
+<a class=skip-main href=#main>Skip to main content</a>
+<div class=container>
+<header class=common-header>
+<div class=header-top>
+<h1 class=site-title>
+<a href=/>alexheretic posts</a>
+</h1>
+<ul class=social-icons>
+<li>
+<a href=https://github.com/alexheretic title=Github rel=me>
+<span class=inline-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><path fill="currentcolor" d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6.0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6.0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3.0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1.0-6.2-.3-40.4-.3-61.4.0.0-70 15-84.7-29.8.0.0-11.4-29.1-27.8-36.6.0.0-22.9-15.7 1.6-15.4.0.0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5.0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9.0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4.0 33.7-.3 75.4-.3 83.6.0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6.0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9.0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+</span>
+</a>
+</li>
+<li>
+<a href=https://alexheretic.github.io/index.xml title=RSS rel=me>
+<span class=inline-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path fill="currentcolor" d="M128.081 415.959c0 35.369-28.672 64.041-64.041 64.041S0 451.328.0 415.959s28.672-64.041 64.041-64.041 64.04 28.673 64.04 64.041zm175.66 47.25c-8.354-154.6-132.185-278.587-286.95-286.95C7.656 175.765.0 183.105.0 192.253v48.069c0 8.415 6.49 15.472 14.887 16.018 111.832 7.284 201.473 96.702 208.772 208.772.547 8.397 7.604 14.887 16.018 14.887h48.069c9.149.001 16.489-7.655 15.995-16.79zm144.249.288C439.596 229.677 251.465 40.445 16.503 32.01 7.473 31.686.0 38.981.0 48.016v48.068c0 8.625 6.835 15.645 15.453 15.999 191.179 7.839 344.627 161.316 352.465 352.465.353 8.618 7.373 15.453 15.999 15.453h48.068c9.034-.001 16.329-7.474 16.005-16.504z"/></svg>
+</span>
+</a>
+</li>
+</ul>
+</div>
+<nav></nav>
+</header>
+<main id=main tabindex=-1>
+<article class="post h-entry">
+<div class=post-header>
+<header>
+<h1 class="p-name post-title">AV1 encoding: ab-av1</h1>
+</header>
+</div>
+<div class="content e-content">
+<p>In <a href=/posts/av1-p1>my previous post</a> I looked at video encoding using svt-av1 with <strong>crf</strong> & <strong>preset</strong> settings and using VMAF to rate the resultant quality. Av1 encoding is reasonably fast now, but encoding a full video then checking the VMAF potentially multiple times to find a good crf & preset&mldr; that is going to be <em>not so fast</em>.</p>
+<h2 id=sample-encoding>Sample encoding
+<span>
+<a href=#sample-encoding><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h2><p>My answer was to cut a small section of the <em>vid.mp4</em> original video, say 20s long, and encode that. It&rsquo;s obviously much faster encoding a short clip, it&rsquo;s also similarly much faster to measure the VMAF. From the clip we can calculate/guess the size of the fully encoded output too. However, the short clip may not be representative of the full video and produce inaccurate VMAF/size.</p>
+<p>But we can improve the accuracy by taking multiple samples considering all of them. It&rsquo;s still way faster to encode & VMAF a bunch of 20s samples than to do the full video.</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>vid.mp4
++--------------------------------------------------------------------------------+
+|               |A|                   |B|                   |C|                  |
++--------------------------------------------------------------------------------+
+                 |                     |                     |
+                 v                     v                     v
+ cut 20s     vid.a.mp4             vid.b.mp4             vid.c.mp4
+                 |                     |                     |
+                 v                     v                     v
+ encode     vid.a.av1.mp4         vid.b.av1.mp4         vid.c.av1.mp4     
+</code></pre></div><ul>
+<li>Cut <em>vid.mp4</em> into 3 20s samples spaced throughout the full video (a, b & c). This is done with ffmpeg and is a comparatively instant operation.</li>
+<li>Encode each sample using svt-av1.</li>
+<li>Calculate VMAF score for each sample.</li>
+</ul>
+<p>Then from the samples we can calculate the mean VMAF and size diff. We can use this to predict what the full video size & VMAF would be after a (potentially lengthy) full encode.</p>
+<p>While it&rsquo;s easy enough to cut a sample using ffmpeg the whole process got complicated enough that I wrote a CLI program to help me.</p>
+<h2 id=ab-av1>ab-av1
+<span>
+<a href=#ab-av1><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h2><p><strong>ab-av1</strong> (<a href=https://github.com/alexheretic/ab-av1#readme>github</a>, <a href=https://aur.archlinux.org/packages/ab-av1>AUR</a>) is a rust CLI binary that I wrote to handle sample encoding <em>(and more)</em>. It calls out to ffmpeg & svt-av1 as child processes to do the actual cutting, encoding and VMAFing.</p>
+<p>ab-av1 has functionality split into subcommands. The first one I wrote handles sample encoding.</p>
+<h3 id=ab-av1-sample-encode>ab-av1 sample-encode
+<span>
+<a href=#ab-av1-sample-encode><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h3><blockquote>
+<p>Encode short video samples of an input using provided crf & preset. This is much quicker than full encode/vmaf run.</p>
+</blockquote>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>ab-av1 sample-encode [OPTIONS] -i &lt;INPUT&gt; --crf &lt;CRF&gt; --preset &lt;PRESET&gt;
+</code></pre></div><p>Let&rsquo;s give it a bash on the same <em>vid.mp4</em> we used previously.</p>
+<p><video src=ab-av1-sample-encode.av1.mp4 poster=ab-av1-sample-encode.avif playsinline controls></video></p>
+<p>So from the 3 samples we can predict VMAF <strong>96.36</strong> and a <strong>59% encoded size</strong>. Since already fully encoded this video with these settings we know that real result was VMAF <strong>96.04</strong> with <strong>66%</strong> size. So we can see the predictions are indeed approximate. But the big difference is we did our prediction in <strong>19 seconds</strong> vs ~13 minutes.</p>
+<p>We can always up the sample count if we suspect our video to be more variable. E.g. if I&rsquo;d used 8 samples above it would have taken 47 seconds to predict VMAF <strong>96.04</strong> with <strong>68%</strong> size, which is <em>very</em> close to the truth and still a lot faster than encoding the whole thing.</p>
+<p>With <strong>sample-encode</strong> we now have a fast & convenient way to how analyse any svt-av1 crf and preset setting. We can now start using it to search for the highest crf that achieves a given VMAF score. Naturally ab-av1 has a subcommand for this.</p>
+<h3 id=ab-av1-crf-search>ab-av1 crf-search
+<span>
+<a href=#ab-av1-crf-search><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h3><blockquote>
+<p>Interpolated binary search using sample-encode to find the best crf value delivering <strong>min-vmaf</strong> & <strong>max-encoded-percent</strong>.</p>
+</blockquote>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>ab-av1 crf-search [OPTIONS] -i &lt;INPUT&gt; --preset &lt;PRESET&gt;
+</code></pre></div><p>Let&rsquo;s try it out by searching for the best crf for <em>vid.mp4</em> to get VMAF 94.</p>
+<p><img src=ab-av1-crf-search.png alt></p>
+<p>The command called sample-encode 4 times as it searched for the highest crf to satisfy our VMAF constraint. It tells us that if we can up our crf to <strong>36</strong> to get our desired quality. Higher crf means our output is will be even smaller. It also predicts how long the full encode will take, ~6 minutes, which we already know is pretty close to the truth.</p>
+<p>Because sample-encode itself is so fast the entire crf-search took only around a minute. Of course this will slow down lower preset, but it will always be hugely proportionally quicker than doing full encodes.</p>
+<h2 id=evaluating-svt-av1-presets>Evaluating svt-av1 presets
+<span>
+<a href=#evaluating-svt-av1-presets><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h2><p>ab-av1 provides a way to take an objective look at svt-av1 presets and to do it in <em>a single human lifetime</em>. We already know lower presets are higher quality and take longer, but how high and how long?</p>
+<p>Well presets 4 and lower are <em>very</em> slow indeed. It&rsquo;s also true that all presets produce roughly the same size output on a given crf. So we need to get a VMAF score to show the true value of the lower ones.</p>
+<p><strong>crf-search</strong> can do this, if the preset gives better quality we should be able to find a higher crf value to satisfy our VMAF constraint.</p>
+<p><img src=ab-av1-presets.png alt title="For presets under 4 even the sample encodes take forever"></p>
+<p>And indeed this is the case. We can use higher crf values to achieve VMAF 94 as we use lower presets. From this example preset <strong>6</strong> seems a good compromise between speed and quality.</p>
+<h2 id=ab-av1-extras>ab-av1: extras
+<span>
+<a href=#ab-av1-extras><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h2><p><strong>sample-encode</strong> & <strong>crf-search</strong> are the &ldquo;guts&rdquo; of ab-av1, but it also comes with some other commands that make use of, or can be used alongside, those. They are at least more ergonomic that using ffmpeg directly and have nice progress bars.</p>
+<ul>
+<li><strong>auto-encode</strong> <em>Automatically determine the best crf to deliver the min-vmaf and use it to encode a video.</em>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>ab-av1 auto-encode [OPTIONS] -i &lt;INPUT&gt; --preset &lt;PRESET&gt;
+</code></pre></div></li>
+<li><strong>encode</strong> <em>Simple invocation of ffmpeg & SvtAv1EncApp to encode a video.</em>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>ab-av1 encode [OPTIONS] -i &lt;INPUT&gt; --crf &lt;CRF&gt; --preset &lt;PRESET&gt;
+</code></pre></div></li>
+<li><strong>vmaf</strong> <em>Simple full calculation of VMAF score distorted file vs original file.</em>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>ab-av1 vmaf --original &lt;ORIGINAL&gt; --distorted &lt;DISTORTED&gt;
+</code></pre></div></li>
+</ul>
+<p>If you have ideas to improve ab-av1, come on over and raise an issue at <a href=https://github.com/alexheretic/ab-av1>alexheretic/ab-av1</a>.</p>
+<h2 id=further-reading-av1an>Further reading: av1an
+<span>
+<a href=#further-reading-av1an><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h2><p>You should also be aware of the more ambitious project <a href=https://github.com/master-of-zen/Av1an>av1an</a>, it&rsquo;s also a rust CLI wrapper that controls child processes. It also supports encoding to a &ldquo;target-quality&rdquo; VMAF score. However, I found it&rsquo;s VMAF analysis to be too slow for my patience, hence my investigation into sample encoding & VMAF. I also find svt-av1 to do good enough threading on it&rsquo;s own, so don&rsquo;t benefit too much from the chunk-based concurrent encoding av1an provides <em>(though libaom & other encoders are perhaps a different story)</em>.</p>
+</div>
+<div class=post-info>
+<div class="post-date dt-published">2022-02-09</div>
+<a class="post-hidden-url u-url" href=https://alexheretic.github.io/posts/ab-av1/>https://alexheretic.github.io/posts/ab-av1/</a>
+<a href=https://alexheretic.github.io class="p-name p-author post-hidden-author h-card" rel=me>Alex Butler</a>
+<div class=post-taxonomies>
+</div>
+</div>
+</article>
+<div class="pagination post-pagination">
+<div class="left pagination-item disabled">
+</div>
+<div class="right pagination-item">
+<a href=/posts/av1-p1/>AV1 encoding: SVT-AV1 & VMAF</a>
+</div>
+</div>
+</main>
+<footer class=common-footer>
+<div class=common-footer-bottom>
+<div class=copyright>
+<p>© Alex Butler, 2022<br>
+</p>
+</div>
+<button class=theme-switcher>
+Dark theme
+</button>
+<script>const STORAGE_KEY='user-color-scheme',defaultTheme="dark";let currentTheme,switchButton,autoDefinedScheme=window.matchMedia('(prefers-color-scheme: dark)');const autoChangeScheme=a=>{currentTheme=a.matches?'dark':'light',document.documentElement.setAttribute('data-theme',currentTheme),changeButtonText()};document.addEventListener('DOMContentLoaded',function(){switchButton=document.querySelector('.theme-switcher'),currentTheme=detectCurrentScheme(),currentTheme=='dark'&&document.documentElement.setAttribute('data-theme','dark'),currentTheme=='auto'&&(autoChangeScheme(autoDefinedScheme),autoDefinedScheme.addListener(autoChangeScheme)),changeButtonText(),switchButton.addEventListener('click',switchTheme,!1)});function detectCurrentScheme(){return localStorage.getItem(STORAGE_KEY)?localStorage.getItem(STORAGE_KEY):defaultTheme?defaultTheme:window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light':'light'}function changeButtonText(){switchButton.textContent=currentTheme=='dark'?"Light theme":"Dark theme"}function switchTheme(a){currentTheme=='dark'?(localStorage.setItem(STORAGE_KEY,'light'),document.documentElement.setAttribute('data-theme','light'),currentTheme='light'):(localStorage.setItem(STORAGE_KEY,'dark'),document.documentElement.setAttribute('data-theme','dark'),currentTheme='dark'),changeButtonText()}</script>
+</div>
+<p class="h-card vcard">
+<a href=https://alexheretic.github.io class="p-name u-url url fn" rel=me>Alex Butler</a>
+<img class=u-photo src=/images/me.webp>
+</p>
+</footer>
+</div>
+</body>
+</html>
