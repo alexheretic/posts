@@ -146,7 +146,8 @@ Sample encoding     My answer was to cut a small section of the vid.">
 <a href=#further-reading-av1an><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
 </a>
 </span>
-</h2><p>You should also be aware of the more ambitious project <a href=https://github.com/master-of-zen/Av1an>av1an</a>, it&rsquo;s also a rust CLI wrapper that controls child processes. It also supports encoding to a &ldquo;target-quality&rdquo; VMAF score. However, I found it&rsquo;s VMAF analysis to be too slow for my patience, hence my investigation into sample encoding & VMAF. I also find svt-av1 to do good enough threading on it&rsquo;s own, so don&rsquo;t benefit too much from the chunk-based concurrent encoding av1an provides <em>(though libaom & other encoders are perhaps a different story)</em>.</p>
+</h2><p>You should also be aware of the more ambitious project <a href=https://github.com/master-of-zen/Av1an>av1an</a>, it&rsquo;s also a rust CLI wrapper that controls child processes. It also supports encoding to a &ldquo;target-quality&rdquo; VMAF score.</p>
+<p>However, I found it&rsquo;s VMAF analysis to be too slow for my patience, hence my investigation into sample encoding & VMAF. I also find svt-av1 to do good enough threading on it&rsquo;s own, so don&rsquo;t benefit too much from the chunk-based concurrent encoding av1an provides <em>(though libaom & other encoders are perhaps a different story)</em>.</p>
 </div>
 <div class=post-info>
 <div class="post-date dt-published">2022-02-09</div>
