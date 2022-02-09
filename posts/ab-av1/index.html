@@ -96,10 +96,7 @@ Sample encoding     My answer was to cut a small section of the vid.">
 </blockquote>
 <div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>ab-av1 sample-encode [OPTIONS] -i &lt;INPUT&gt; --crf &lt;CRF&gt; --preset &lt;PRESET&gt;
 </code></pre></div><p>Let&rsquo;s give it a bash on the same <em>vid.mp4</em> we used previously.</p>
-<video poster=ab-av1-sample-encode.avif playsinline controls>
-<source src=ab-av1-sample-encode.av1.mp4 type=video/mp4>
-<source src=ab-av1-sample-encode.webm type=video/webm>
-</video>
+<p><video src=ab-av1-sample-encode.mp4 poster=ab-av1-sample-encode.avif playsinline controls></video></p>
 <p>So from the 3 samples we can predict VMAF <strong>96.36</strong> and a <strong>59% encoded size</strong>. Since already fully encoded this video with these settings we know that real result was VMAF <strong>96.04</strong> with <strong>66%</strong> size. So we can see the predictions are indeed approximate. But the big difference is we did our prediction in <strong>19 seconds</strong> vs ~13 minutes.</p>
 <p>We can always up the sample count if we suspect our video to be more variable. E.g. if I&rsquo;d used 8 samples above it would have taken 47 seconds to predict VMAF <strong>96.04</strong> with <strong>68%</strong> size, which is <em>very</em> close to the truth and still a lot faster than encoding the whole thing.</p>
 <p>With <strong>sample-encode</strong> we now have a fast & convenient way to how analyse any svt-av1 crf and preset setting. We can now start using it to search for the highest crf that achieves a given VMAF score. Naturally ab-av1 has a subcommand for this.</p>
