@@ -112,14 +112,14 @@ Sample encoding     My answer was to cut a small section of the vid.">
 </code></pre></div><p>Let&rsquo;s try it out by searching for the best crf for <em>vid.mp4</em> to get VMAF 94.</p>
 <p><img src=ab-av1-crf-search.png alt></p>
 <p>The command called sample-encode 4 times as it searched for the highest crf to satisfy our VMAF constraint. It tells us that if we can up our crf to <strong>36</strong> to get our desired quality. Higher crf means our output is will be even smaller. It also predicts how long the full encode will take, ~6 minutes, which we already know is pretty close to the truth.</p>
-<p>Because sample-encode itself is so fast the entire crf-search took only around a minute. Of course this will slow down lower preset, but it will always be hugely proportionally quicker than doing full encodes.</p>
+<p>Because sample-encode itself is so fast the entire crf-search took only around a minute. Of course this will slow down with lower presets, but should always be proportionally much quicker than doing a full encode.</p>
 <h2 id=evaluating-svt-av1-presets>Evaluating svt-av1 presets
 <span>
 <a href=#evaluating-svt-av1-presets><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
 </a>
 </span>
 </h2><p>ab-av1 provides a way to take an objective look at svt-av1 presets and to do it in <em>a single human lifetime</em>. We already know lower presets are higher quality and take longer, but how high and how long?</p>
-<p>Well presets 4 and lower are <em>very</em> slow indeed. It&rsquo;s also true that all presets produce roughly the same size output on a given crf. So we need to get a VMAF score to show the true value of the lower ones.</p>
+<p>Well lower presets are <em>very</em> slow indeed. It&rsquo;s also true that all presets produce roughly the same size output on a given crf. So we need to get a VMAF score to show the true value.</p>
 <p><strong>crf-search</strong> can do this, if the preset gives better quality we should be able to find a higher crf value to satisfy our VMAF constraint.</p>
 <p><img src=ab-av1-presets.png alt title="For presets under 4 even the sample encodes take forever"></p>
 <p>And indeed this is the case. We can use higher crf values to achieve VMAF 94 as we use lower presets. From this example preset <strong>6</strong> seems a good compromise between speed and quality.</p>
@@ -147,7 +147,7 @@ Sample encoding     My answer was to cut a small section of the vid.">
 </a>
 </span>
 </h2><p>You should also be aware of the more ambitious project <a href=https://github.com/master-of-zen/Av1an>av1an</a>, it&rsquo;s also a rust CLI wrapper that controls child processes. It also supports encoding to a &ldquo;target-quality&rdquo; VMAF score.</p>
-<p>However, I found it&rsquo;s VMAF analysis to be too slow for my patience, hence my investigation into sample encoding & VMAF. I also find svt-av1 to do good enough threading on it&rsquo;s own, so don&rsquo;t benefit too much from the chunk-based concurrent encoding av1an provides <em>(though libaom & other encoders are perhaps a different story)</em>.</p>
+<p>However, I found it&rsquo;s VMAF analysis to be too slow for my patience, hence my investigation into sample encoding & VMAF. I also find svt-av1 to do good enough threading on its own, so don&rsquo;t benefit too much from the chunk-based concurrent encoding av1an provides <em>(though libaom & other encoders are perhaps a different story)</em>.</p>
 </div>
 <div class=post-info>
 <div class="post-date dt-published">2022-02-09</div>
