@@ -61,12 +61,12 @@ Let's try it out by searching for the best crf for _vid.mp4_ to get VMAF 94.
 
 The command called sample-encode 4 times as it searched for the highest crf to satisfy our VMAF constraint. It tells us that if we can up our crf to **36** to get our desired quality. Higher crf means our output is will be even smaller. It also predicts how long the full encode will take, ~6 minutes, which we already know is pretty close to the truth.
 
-Because sample-encode itself is so fast the entire crf-search took only around a minute. Of course this will slow down lower preset, but it will always be hugely proportionally quicker than doing full encodes.
+Because sample-encode itself is so fast the entire crf-search took only around a minute. Of course this will slow down with lower presets, but should always be proportionally much quicker than doing a full encode.
 
 ## Evaluating svt-av1 presets
 ab-av1 provides a way to take an objective look at svt-av1 presets and to do it in _a single human lifetime_. We already know lower presets are higher quality and take longer, but how high and how long?
 
-Well presets 4 and lower are _very_ slow indeed. It's also true that all presets produce roughly the same size output on a given crf. So we need to get a VMAF score to show the true value of the lower ones.
+Well lower presets are _very_ slow indeed. It's also true that all presets produce roughly the same size output on a given crf. So we need to get a VMAF score to show the true value.
 
 **crf-search** can do this, if the preset gives better quality we should be able to find a higher crf value to satisfy our VMAF constraint.
 
@@ -95,4 +95,4 @@ If you have ideas to improve ab-av1, come on over and raise an issue at [alexher
 ## Further reading: av1an
 You should also be aware of the more ambitious project [av1an](https://github.com/master-of-zen/Av1an), it's also a rust CLI wrapper that controls child processes. It also supports encoding to a "target-quality" VMAF score. 
 
-However, I found it's VMAF analysis to be too slow for my patience, hence my investigation into sample encoding & VMAF. I also find svt-av1 to do good enough threading on it's own, so don't benefit too much from the chunk-based concurrent encoding av1an provides _(though libaom & other encoders are perhaps a different story)_.
+However, I found it's VMAF analysis to be too slow for my patience, hence my investigation into sample encoding & VMAF. I also find svt-av1 to do good enough threading on its own, so don't benefit too much from the chunk-based concurrent encoding av1an provides _(though libaom & other encoders are perhaps a different story)_.
