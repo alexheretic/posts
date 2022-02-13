@@ -41,7 +41,7 @@ ab-av1 sample-encode [OPTIONS] -i <INPUT> --crf <CRF> --preset <PRESET>
 
 Let's give it a bash on the same _vid.mp4_ we used previously.
 
-<video src="ab-av1-sample-encode.mp4" poster="ab-av1-sample-encode.avif" playsinline controls></video>
+<video src="ab-av1-sample-encode.mp4" poster="ab-av1-sample-encode.avif" width="100%" playsinline controls></video>
 
 So from the 3 samples we can predict VMAF **96.36** and a **59% encoded size**. Since already fully encoded this video with these settings we know that real result was VMAF **96.04** with **66%** size. So we can see the predictions are indeed approximate. But the big difference is we did our prediction in **19 seconds** vs ~13 minutes.
 
