@@ -64,5 +64,9 @@ utterancesLabel = ""
 id = "github"
 name = "alexheretic"
 
+[[params.social]]
+id = "twitter"
+name = "alexbigab"
+
 [markup.goldmark.renderer]
 unsafe = true
