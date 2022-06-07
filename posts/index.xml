@@ -1,4 +1,67 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on alexheretic posts</title><link>https://alexheretic.github.io/posts/</link><description>alexheretic posts (Posts)</description><generator>Hugo -- gohugo.io</generator><language>en-gb</language><lastBuildDate>Wed, 09 Feb 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://alexheretic.github.io/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>AV1 encoding: ab-av1</title><link>https://alexheretic.github.io/posts/ab-av1/</link><pubDate>Wed, 09 Feb 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/ab-av1/</guid><description>&lt;p>In &lt;a href="https://alexheretic.github.io/posts/av1-p1">my previous post&lt;/a> I looked at video encoding using svt-av1 with &lt;strong>crf&lt;/strong> &amp;amp; &lt;strong>preset&lt;/strong> settings and using VMAF to rate the resultant quality. Av1 encoding is reasonably fast now, but encoding a full video then checking the VMAF potentially multiple times to find a good crf &amp;amp; preset&amp;hellip; that is going to be &lt;em>not so fast&lt;/em>.&lt;/p>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on alexheretic posts</title><link>https://alexheretic.github.io/posts/</link><description>alexheretic posts (Posts)</description><generator>Hugo -- gohugo.io</generator><language>en-gb</language><lastBuildDate>Tue, 07 Jun 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://alexheretic.github.io/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>Rust async batching with benjamin-batchly</title><link>https://alexheretic.github.io/posts/benjamin-batchly/</link><pubDate>Tue, 07 Jun 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/benjamin-batchly/</guid><description>&lt;p>Sometimes instead of doing lots of little things concurrently, it is better to bundle them together
+and do them all at once, as a &lt;em>batch&lt;/em>. So on a bank holiday Thursday morning I awoke early (mostly due to the screams of my 1 year old boys) and (after the screaming stopped) wrote a crate to help do that: &lt;a href="https://github.com/alexheretic/benjamin-batchly">benjamin_batchly&lt;/a>.&lt;/p>
+&lt;h2 id="example-inserting-into-a-database" >Example: Inserting into a database
+&lt;span>
+&lt;a href="#example-inserting-into-a-database">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>A recurring theme of database optimisation is reducing &amp;ldquo;trips&amp;rdquo; to the database. It is usually faster to send 1 fat message containing N items than it is to send N thin messages containing just 1 item.&lt;/p>
+&lt;p>Consider a crud-style create request which we&amp;rsquo;d like to insert into a database.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">async&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">handle_create_foo&lt;/span>(db: &lt;span style="color:#66d9ef">&amp;amp;&lt;/span>&lt;span style="color:#a6e22e">Db&lt;/span>, data: &lt;span style="color:#a6e22e">CreateFooRequest&lt;/span>) -&amp;gt; Result&lt;span style="color:#f92672">&amp;lt;&lt;/span>(), Error&lt;span style="color:#f92672">&amp;gt;&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">let&lt;/span> db_item &lt;span style="color:#f92672">=&lt;/span> DbItem::from(data);
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> db.insert(db_item).&lt;span style="color:#66d9ef">await&lt;/span>&lt;span style="color:#f92672">?&lt;/span>;
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Ok(())
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>So for each &lt;em>CreateFooRequest&lt;/em> we will insert a single item into our db. We can batch these with a &lt;em>BatchMutex&lt;/em>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">use&lt;/span> benjamin_batchly::{BatchMutex, BatchResult};
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">async&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">handle_create_foo&lt;/span>(
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> batch_mutex: &lt;span style="color:#66d9ef">&amp;amp;&lt;/span>&lt;span style="color:#a6e22e">BatchMutex&lt;/span>&lt;span style="color:#f92672">&amp;lt;&lt;/span>(), DbItem&lt;span style="color:#f92672">&amp;gt;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> db: &lt;span style="color:#66d9ef">&amp;amp;&lt;/span>&lt;span style="color:#a6e22e">Db&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> data: &lt;span style="color:#a6e22e">CreateFooRequest&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>) -&amp;gt; Result&lt;span style="color:#f92672">&amp;lt;&lt;/span>(), Error&lt;span style="color:#f92672">&amp;gt;&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">let&lt;/span> db_item &lt;span style="color:#f92672">=&lt;/span> DbItem::from(data);
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">match&lt;/span> batch_mutex.submit((), db_item).&lt;span style="color:#66d9ef">await&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> BatchResult::Work(&lt;span style="color:#66d9ef">mut&lt;/span> batch) &lt;span style="color:#f92672">=&amp;gt;&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> db.bulk_insert(&lt;span style="color:#f92672">&amp;amp;&lt;/span>batch.items).&lt;span style="color:#66d9ef">await&lt;/span>&lt;span style="color:#f92672">?&lt;/span>;
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> batch.notify_all_done();
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Ok(())
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> BatchResult::Done(_) &lt;span style="color:#f92672">=&amp;gt;&lt;/span> Ok(()),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> BatchResult::Failed &lt;span style="color:#f92672">=&amp;gt;&lt;/span> Err(Error::BatchFailed),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Submitting to the &lt;em>BatchMutex&lt;/em> provides 3 async outcomes.&lt;/p>
+&lt;ul>
+&lt;li>&lt;em>&lt;strong>Work&lt;/strong>&lt;/em> A batch of 1 or more items, including the one submitted, which should be handled.&lt;/li>
+&lt;li>&lt;em>&lt;strong>Done&lt;/strong>&lt;/em> The submitted item was handled in a batch by another submitter &amp;amp; notified done.&lt;/li>
+&lt;li>&lt;em>&lt;strong>Failed&lt;/strong>&lt;/em> The submitted item was handled in a batch by another submitter but dropped before notifying done.&lt;/li>
+&lt;/ul>
+&lt;p>So if 100 &lt;em>CreateFooRequest&lt;/em> requests come in while a batch is ongoing they&amp;rsquo;ll await at &lt;em>submit&lt;/em>. Once the previous batch has finished all waiting submissions become the next batch. 1 call will return &lt;em>BatchResult::Work&lt;/em> and after the &lt;em>batch.notify_all_done()&lt;/em> call 99 others will return &lt;em>BatchResult::Done&lt;/em>.&lt;/p>
+&lt;p>Note: In the example I used the unit type () as the first argument for &lt;em>submit&lt;/em>. This is the &amp;ldquo;batch key&amp;rdquo; which can be used to partition batching. Only items submitted with the same batch key are bundled together which is useful in more general cases.&lt;/p>
+&lt;p>Note(2): Individual item return values are also supported, check out the &lt;a href="https://docs.rs/benjamin_batchly/latest/benjamin_batchly">docs&lt;/a> for more info.&lt;/p>
+&lt;h2 id="benjamin-batchly-implementation-goals" >benjamin-batchly implementation goals
+&lt;span>
+&lt;a href="#benjamin-batchly-implementation-goals">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>Some I had goals for the implementation:&lt;/p>
+&lt;ul>
+&lt;li>Avoid spawning any additional tasks.&lt;/li>
+&lt;li>Avoid lifetime issues (so probably avoid async closures).&lt;/li>
+&lt;/ul>
+&lt;p>By using a async return value instead of a closure it&amp;rsquo;s clear who is doing the work here and avoids lifetime borrowing &amp;amp; move issues in the abstraction.&lt;/p>
+&lt;ul>
+&lt;li>All submissions &lt;strong>must&lt;/strong> know whether the batch worked or not.&lt;/li>
+&lt;li>Usage should be as &amp;ldquo;foolproof&amp;rdquo; as possible.&lt;/li>
+&lt;/ul>
+&lt;p>One of the wonderful Rust concepts that really allows this lib to shine is the &lt;a href="https://doc.rust-lang.org/std/ops/trait.Drop.html">Drop trait&lt;/a>. It eliminates foot guns by reliably providing feedback to submit callers in the edge cases. Love it.&lt;/p>
+&lt;ul>
+&lt;li>Batching should have minimal latency overhead.&lt;/li>
+&lt;/ul>
+&lt;p>In my motivating use case I&amp;rsquo;m fine with batch sizes of 1 for low traffic and I didn&amp;rsquo;t want to wait artificially. The currently implementation the batch size is totally driven by how long it takes to do the work and how many new submissions are incoming. So slow processes with high traffic will naturally see bigger batches. Submissions are never waiting around for a batch, if they can go, they go. Maybe in future the crate should also handing some form of configurable waiting, if there&amp;rsquo;s a good use case?&lt;/p></description></item><item><title>AV1 encoding: ab-av1</title><link>https://alexheretic.github.io/posts/ab-av1/</link><pubDate>Wed, 09 Feb 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/ab-av1/</guid><description>&lt;p>In &lt;a href="https://alexheretic.github.io/posts/av1-p1">my previous post&lt;/a> I looked at video encoding using svt-av1 with &lt;strong>crf&lt;/strong> &amp;amp; &lt;strong>preset&lt;/strong> settings and using VMAF to rate the resultant quality. Av1 encoding is reasonably fast now, but encoding a full video then checking the VMAF potentially multiple times to find a good crf &amp;amp; preset&amp;hellip; that is going to be &lt;em>not so fast&lt;/em>.&lt;/p>
 &lt;h2 id="sample-encoding" >Sample encoding
 &lt;span>
 &lt;a href="#sample-encoding">
@@ -7,17 +70,17 @@
 &lt;/span>
 &lt;/h2>&lt;p>My answer was to cut a small section of the &lt;em>vid.mp4&lt;/em> original video, say 20s long, and encode that. It&amp;rsquo;s obviously much faster encoding a short clip, it&amp;rsquo;s also similarly much faster to measure the VMAF. From the clip we can calculate/guess the size of the fully encoded output too. However, the short clip may not be representative of the full video and produce inaccurate VMAF/size.&lt;/p>
 &lt;p>But we can improve the accuracy by taking multiple samples considering all of them. It&amp;rsquo;s still way faster to encode &amp;amp; VMAF a bunch of 20s samples than to do the full video.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">vid.mp4
-+--------------------------------------------------------------------------------+
-| |A| |B| |C| |
-+--------------------------------------------------------------------------------+
-| | |
-v v v
-cut 20s vid.a.mp4 vid.b.mp4 vid.c.mp4
-| | |
-v v v
-encode vid.a.av1.mp4 vid.b.av1.mp4 vid.c.av1.mp4
-&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>vid.mp4
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>+--------------------------------------------------------------------------------+
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>| |A| |B| |C| |
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>+--------------------------------------------------------------------------------+
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> | | |
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> v v v
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> cut 20s vid.a.mp4 vid.b.mp4 vid.c.mp4
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> | | |
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> v v v
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> encode vid.a.av1.mp4 vid.b.av1.mp4 vid.c.av1.mp4
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
 &lt;li>Cut &lt;em>vid.mp4&lt;/em> into 3 20s samples spaced throughout the full video (a, b &amp;amp; c). This is done with ffmpeg and is a comparatively instant operation.&lt;/li>
 &lt;li>Encode each sample using svt-av1.&lt;/li>
 &lt;li>Calculate VMAF score for each sample.&lt;/li>
@@ -41,8 +104,8 @@ encode vid.a.av1.mp4 vid.b.av1.mp4 vid.c.av1.mp4
 &lt;/h3>&lt;blockquote>
 &lt;p>Encode short video samples of an input using provided crf &amp;amp; preset. This is much quicker than full encode/vmaf run.&lt;/p>
 &lt;/blockquote>
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">ab-av1 sample-encode [OPTIONS] -i &amp;lt;INPUT&amp;gt; --crf &amp;lt;CRF&amp;gt; --preset &amp;lt;PRESET&amp;gt;
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>Let&amp;rsquo;s give it a bash on the same &lt;em>vid.mp4&lt;/em> we used previously.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>ab-av1 sample-encode [OPTIONS] -i &amp;lt;INPUT&amp;gt; --crf &amp;lt;CRF&amp;gt; --preset &amp;lt;PRESET&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Let&amp;rsquo;s give it a bash on the same &lt;em>vid.mp4&lt;/em> we used previously.&lt;/p>
 &lt;p>&lt;video src="ab-av1-sample-encode.mp4" poster="ab-av1-sample-encode.avif" width="100%" playsinline controls>&lt;/video>&lt;/p>
 &lt;p>So from the 3 samples we can predict VMAF &lt;strong>96.36&lt;/strong> and a &lt;strong>59% encoded size&lt;/strong>. Since already fully encoded this video with these settings we know that real result was VMAF &lt;strong>96.04&lt;/strong> with &lt;strong>66%&lt;/strong> size. So we can see the predictions are indeed approximate. But the big difference is we did our prediction in &lt;strong>19 seconds&lt;/strong> vs ~13 minutes.&lt;/p>
 &lt;p>We can always up the sample count if we suspect our video to be more variable. E.g. if I&amp;rsquo;d used 8 samples above it would have taken 47 seconds to predict VMAF &lt;strong>96.04&lt;/strong> with &lt;strong>68%&lt;/strong> size, which is &lt;em>very&lt;/em> close to the truth and still a lot faster than encoding the whole thing.&lt;/p>
@@ -56,8 +119,8 @@ encode vid.a.av1.mp4 vid.b.av1.mp4 vid.c.av1.mp4
 &lt;/h3>&lt;blockquote>
 &lt;p>Interpolated binary search using sample-encode to find the best crf value delivering &lt;strong>min-vmaf&lt;/strong> &amp;amp; &lt;strong>max-encoded-percent&lt;/strong>.&lt;/p>
 &lt;/blockquote>
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">ab-av1 crf-search [OPTIONS] -i &amp;lt;INPUT&amp;gt; --preset &amp;lt;PRESET&amp;gt;
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>Let&amp;rsquo;s try it out by searching for the best crf for &lt;em>vid.mp4&lt;/em> to get VMAF 94.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>ab-av1 crf-search [OPTIONS] -i &amp;lt;INPUT&amp;gt; --preset &amp;lt;PRESET&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Let&amp;rsquo;s try it out by searching for the best crf for &lt;em>vid.mp4&lt;/em> to get VMAF 94.&lt;/p>
 &lt;p>&lt;img src="ab-av1-crf-search.png" alt="">&lt;/p>
 &lt;p>The command called sample-encode 4 times as it searched for the highest crf to satisfy our VMAF constraint. It tells us that if we can up our crf to &lt;strong>36&lt;/strong> to get our desired quality. Higher crf means our output is will be even smaller. It also predicts how long the full encode will take, ~6 minutes, which we already know is pretty close to the truth.&lt;/p>
 &lt;p>Because sample-encode itself is so fast the entire crf-search took only around a minute. Of course this will slow down with lower presets, but should always be proportionally much quicker than doing a full encode.&lt;/p>
@@ -81,14 +144,14 @@ encode vid.a.av1.mp4 vid.b.av1.mp4 vid.c.av1.mp4
 &lt;/h2>&lt;p>&lt;strong>sample-encode&lt;/strong> &amp;amp; &lt;strong>crf-search&lt;/strong> are the &amp;ldquo;guts&amp;rdquo; of ab-av1, but it also comes with some other commands that make use of, or can be used alongside, those. They are at least more ergonomic that using ffmpeg directly and have nice progress bars.&lt;/p>
 &lt;ul>
 &lt;li>&lt;strong>auto-encode&lt;/strong> &lt;em>Automatically determine the best crf to deliver the min-vmaf and use it to encode a video.&lt;/em>
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">ab-av1 auto-encode [OPTIONS] -i &amp;lt;INPUT&amp;gt; --preset &amp;lt;PRESET&amp;gt;
-&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>ab-av1 auto-encode [OPTIONS] -i &amp;lt;INPUT&amp;gt; --preset &amp;lt;PRESET&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;li>&lt;strong>encode&lt;/strong> &lt;em>Simple invocation of ffmpeg &amp;amp; SvtAv1EncApp to encode a video.&lt;/em>
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">ab-av1 encode [OPTIONS] -i &amp;lt;INPUT&amp;gt; --crf &amp;lt;CRF&amp;gt; --preset &amp;lt;PRESET&amp;gt;
-&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>ab-av1 encode [OPTIONS] -i &amp;lt;INPUT&amp;gt; --crf &amp;lt;CRF&amp;gt; --preset &amp;lt;PRESET&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;li>&lt;strong>vmaf&lt;/strong> &lt;em>Simple full calculation of VMAF score distorted file vs original file.&lt;/em>
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-text" data-lang="text">ab-av1 vmaf --original &amp;lt;ORIGINAL&amp;gt; --distorted &amp;lt;DISTORTED&amp;gt;
-&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>ab-av1 vmaf --original &amp;lt;ORIGINAL&amp;gt; --distorted &amp;lt;DISTORTED&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;/ul>
 &lt;p>If you have ideas to improve ab-av1, come on over and raise an issue at &lt;a href="https://github.com/alexheretic/ab-av1">alexheretic/ab-av1&lt;/a>.&lt;/p>
 &lt;h2 id="further-reading-av1an" >Further reading: av1an
@@ -108,12 +171,12 @@ encode vid.a.av1.mp4 vid.b.av1.mp4 vid.c.av1.mp4
 &lt;/span>
 &lt;/h2>&lt;p>A fair test of a codec is to take a high quality original compare an encoding using av1 and one using h264 (or whatever). However, in reality I have a bunch of already h264-ed videos with no high-quality originals. Av1 in many cases can do a much harder feat in re-encoding h264 to a significantly smaller size without perceptible quality loss.&lt;/p>
 &lt;p>Lets re-encode a ~35 minute 854x480 h264 video as an example. First you&amp;rsquo;ll need svt-av1 &amp;amp; ffmpeg installed.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">sudo pacman -Syu svt-av1 ffmpeg
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>Then we can use them to re-encode &lt;em>vid.mp4&lt;/em>.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">ffmpeg -loglevel error -i vid.mp4 -pix_fmt yuv420p10le -strict -1 -f yuv4mpegpipe - &lt;span style="color:#ae81ff">\
-&lt;/span>&lt;span style="color:#ae81ff">&lt;/span> | SvtAv1EncApp -i stdin --crf &lt;span style="color:#ae81ff">32&lt;/span> --preset &lt;span style="color:#ae81ff">8&lt;/span> --input-depth &lt;span style="color:#ae81ff">10&lt;/span> -b stdout &lt;span style="color:#ae81ff">\
-&lt;/span>&lt;span style="color:#ae81ff">&lt;/span> | ffmpeg -i - -i vid.mp4 -map 0:v -map 1:a:0 -c:a copy -c:v copy vid.av1.mp4
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>Here we&amp;rsquo;re doing 3 commands each piping into the next:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>sudo pacman -Syu svt-av1 ffmpeg
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Then we can use them to re-encode &lt;em>vid.mp4&lt;/em>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>ffmpeg -loglevel error -i vid.mp4 -pix_fmt yuv420p10le -strict -1 -f yuv4mpegpipe - &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span> | SvtAv1EncApp -i stdin --crf &lt;span style="color:#ae81ff">32&lt;/span> --preset &lt;span style="color:#ae81ff">8&lt;/span> --input-depth &lt;span style="color:#ae81ff">10&lt;/span> -b stdout &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span> | ffmpeg -i - -i vid.mp4 -map 0:v -map 1:a:0 -c:a copy -c:v copy vid.av1.mp4
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Here we&amp;rsquo;re doing 3 commands each piping into the next:&lt;/p>
 &lt;ul>
 &lt;li>Use ffmpeg to convert &lt;em>vid.mp4&lt;/em> into a format that svt-av1 can encode &lt;em>(using 10-bit over 8-bit as it&amp;rsquo;s generally recommended)&lt;/em>.&lt;/li>
 &lt;li>Use svt-av1 to encode the stream using a &lt;strong>crf&lt;/strong> (quality) and &lt;strong>preset&lt;/strong> (encoder speed) setting we just made up.&lt;/li>
@@ -135,10 +198,10 @@ encode vid.a.av1.mp4 vid.b.av1.mp4 vid.c.av1.mp4
 &lt;/a>
 &lt;/span>
 &lt;/h2>&lt;p>VMAF is a video quality metric we can use to do that. You give it two videos and it&amp;rsquo;ll give you a score (0-100) of how close the distorted was to the original, 100 being perfect.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">sudo pacman -Syu vmaf
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>We can use this (via ffmpeg) to test our &lt;em>vid.av1.mp4&lt;/em>.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">ffmpeg -i vid.av1.mp4 -i vid.mp4 -lavfi libvmaf -f null -
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>This produces a VMAF score of &lt;strong>96.044922&lt;/strong>. So supports what my eyes thought &lt;em>vid.av1.mp4&lt;/em> is very similar to the h264 &lt;em>vid.mp4&lt;/em>. It also suggests we could get the av1 version even smaller and achieve, say, VMAF 95.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>sudo pacman -Syu vmaf
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>We can use this (via ffmpeg) to test our &lt;em>vid.av1.mp4&lt;/em>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>ffmpeg -i vid.av1.mp4 -i vid.mp4 -lavfi libvmaf -f null -
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This produces a VMAF score of &lt;strong>96.044922&lt;/strong>. So supports what my eyes thought &lt;em>vid.av1.mp4&lt;/em> is very similar to the h264 &lt;em>vid.mp4&lt;/em>. It also suggests we could get the av1 version even smaller and achieve, say, VMAF 95.&lt;/p>
 &lt;p>Now we have the tools to test different &lt;strong>crf&lt;/strong> values to find the highest that gives us a given VMAF score. We can try different &lt;strong>preset&lt;/strong> values too.&lt;/p>
 &lt;p>The catch is VMAF itself isn&amp;rsquo;t super fast. The run above took ~6 minutes using all my cores. So testing another crf will take another 13 minutes or so. If we try lower presets it&amp;rsquo;ll take longer to encode. And of course this is with a shortish low resolution video, longer 1080p or 4k videos will take ages.&lt;/p>
 &lt;p>In the next post I&amp;rsquo;ll talk about a way to get &lt;strong>much faster VMAF scores&lt;/strong> for any given svt-av1 crf &amp;amp; preset.&lt;/p></description></item><item><title>Game years</title><link>https://alexheretic.github.io/posts/games/</link><pubDate>Sat, 05 Feb 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/games/</guid><description>&lt;p>In 2017 I quit my job to make a PC programming puzzle game &lt;a href="https://www.roboinstruct.us">&lt;strong>Robo Instructus&lt;/strong>&lt;/a>.&lt;/p>
