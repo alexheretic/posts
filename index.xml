@@ -1,4 +1,69 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>alexheretic posts</title><link>https://alexheretic.github.io/</link><description>alexheretic posts</description><generator>Hugo -- gohugo.io</generator><language>en-gb</language><lastBuildDate>Tue, 07 Jun 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://alexheretic.github.io/index.xml" rel="self" type="application/rss+xml"/><item><title>Rust async batching with benjamin-batchly</title><link>https://alexheretic.github.io/posts/benjamin-batchly/</link><pubDate>Tue, 07 Jun 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/benjamin-batchly/</guid><description>&lt;p>Sometimes instead of doing lots of little things concurrently, it is better to bundle them together
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>alexheretic posts</title><link>https://alexheretic.github.io/</link><description>alexheretic posts</description><generator>Hugo -- gohugo.io</generator><language>en-gb</language><lastBuildDate>Fri, 22 Jul 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://alexheretic.github.io/index.xml" rel="self" type="application/rss+xml"/><item><title>ab-av1: Letting other encoders in to the party</title><link>https://alexheretic.github.io/posts/ab-av1-2/</link><pubDate>Fri, 22 Jul 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/ab-av1-2/</guid><description>&lt;p>Since &lt;a href="https://alexheretic.github.io/posts/ab-av1">posting about ab-av1&lt;/a> I&amp;rsquo;ve been improving the tool. v0.2.0 brought support for automatic key interval setting, arbitrary svt-av1 arguments, configurable vfilters &amp;amp; pixel format. Later in v0.3.0 I improved VMAF with automatic model selection &amp;amp; automatic upscaling to the selected model.&lt;/p>
+&lt;p>When I found myself wanting to encode in an older format (e.g. x264/x265) to target somewhere without as good av1 support, I really missed not being able to use ab-av1&amp;rsquo;s &lt;em>auto-encode&lt;/em> / &lt;em>crf-search&lt;/em>. So &lt;a href="https://github.com/alexheretic/ab-av1/blob/main/CHANGELOG.md#v040">&lt;strong>v0.4.0&lt;/strong>&lt;/a> is now available has new option &lt;code>--encoder&lt;/code>/&lt;code>-e&lt;/code> which can override the default svt-av1 encoder to use any ffmpeg encoder instead.&lt;/p>
+&lt;p>This opens the doors to a world of fast crf searching &amp;amp; auto encoding with any video encoder you like.&lt;/p>
+&lt;h2 id="examples" >Examples
+&lt;span>
+&lt;a href="#examples">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;h3 id="x264" >x264
+&lt;span>
+&lt;a href="#x264">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h3>&lt;p>Lets take it for a spin with a high bitrate h264 1.1GB video re-encoding to a smaller size with at least 95 VMAF using good old &lt;strong>libx264&lt;/strong>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>ab-av1 crf-search -e libx264 -i vid.mp4
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img src="libx264.png" alt="" title="crf-search with libx264">&lt;/p>
+&lt;p>So instead of using &lt;em>SvtAv1EncApp&lt;/em> to encode we&amp;rsquo;ll call &lt;em>ffmpeg&lt;/em> instead with vcodec libx264. We can still do some of the nice things we do with the default encoder like set keyint (aka &lt;code>-g&lt;/code> in ffmpeg) to 10s correctly depending on the input framerate.&lt;/p>
+&lt;h3 id="x265" >x265
+&lt;span>
+&lt;a href="#x265">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h3>&lt;p>How about &lt;strong>libx265&lt;/strong> which should be more efficient.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>ab-av1 crf-search -e libx265 -i vid.mp4
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img src="libx265.png" alt="" title="crf-search with libx265">&lt;/p>
+&lt;p>Yeah a pretty nice reduction in size, though encoding isn&amp;rsquo;t quite as speedy as it&amp;rsquo;s dad.&lt;/p>
+&lt;h3 id="va-api" >VA-API
+&lt;span>
+&lt;a href="#va-api">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h3>&lt;p>Since we can use anything that works with ffmpeg we can even try GPU accelerated encoding. My GPU supports h265 encoding. Though crf encoding isn&amp;rsquo;t supported we can set the somewhat equivalent &lt;code>-qp&lt;/code> quality which ab-av1 will automatically use for vaapi encoders.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>ab-av1 crf-search -e hevc_vaapi -i vid.mp4 &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span> --enc-input hwaccel&lt;span style="color:#f92672">=&lt;/span>vaapi &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span> --enc-input hwaccel_output_format&lt;span style="color:#f92672">=&lt;/span>vaapi
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img src="hevc_vaapi.png" alt="" title="crf-search with hevc_vaapi">&lt;/p>
+&lt;p>It is very fast and doesn&amp;rsquo;t use CPU. But not as flexible to use as the CPU encoders plus no way to configure the quality/speed trade off. It will be interesting to see GPU AV1 encoders!&lt;/p>
+&lt;h3 id="libaom-av1" >libaom-av1
+&lt;span>
+&lt;a href="#libaom-av1">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h3>&lt;p>&lt;em>Still running&amp;hellip;&lt;/em>&lt;/p>
+&lt;h3 id="default-svt-av1" >Default: svt-av1
+&lt;span>
+&lt;a href="#default-svt-av1">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h3>&lt;p>Finally we have the default encoder svt-av1. It now has a default preset of &lt;strong>8&lt;/strong>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>ab-av1 crf-search -i vid.mp4
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img src="svt-av1.png" alt="" title="crf-search with svt-av1">&lt;/p>
+&lt;p>AV1 is great and using svt-av1 it&amp;rsquo;s fast too, encoding faster than x265 with better compression.&lt;/p>
+&lt;h2 id="final-remarks" >Final remarks
+&lt;span>
+&lt;a href="#final-remarks">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>I was worried the code would get a bit muddled with the addition of configurable encoders, and indeed it does make things a little more complicated. In particular some of the argument &amp;amp; commands may not have the best names now, since an encoder may not even use &amp;ldquo;crf&amp;rdquo; or &amp;ldquo;preset&amp;rdquo;. There is room for improvement perhaps, but with av1 support still not 100% everywhere I think this feature is more than worthwhile.&lt;/p>
+&lt;p>There are also vcodec specific tweaks we can make. I&amp;rsquo;ve already added some for vaapi codecs, libvpx-vp9 &amp;amp; libaom-av1 but I&amp;rsquo;m sure more can be added. Head over to the &lt;a href="https://github.com/alexheretic/ab-av1">ab-av1 repo&lt;/a> to raise a PR or issue if you have some ideas.&lt;/p></description></item><item><title>Rust async batching with benjamin-batchly</title><link>https://alexheretic.github.io/posts/benjamin-batchly/</link><pubDate>Tue, 07 Jun 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/benjamin-batchly/</guid><description>&lt;p>Sometimes instead of doing lots of little things concurrently, it is better to bundle them together
 and do them all at once, as a &lt;em>batch&lt;/em>. So on a bank holiday Thursday morning I awoke early (mostly due to the screams of my 1 year old boys) and (after the screaming stopped) wrote a crate to help do that: &lt;a href="https://github.com/alexheretic/benjamin-batchly">benjamin_batchly&lt;/a>.&lt;/p>
 &lt;h2 id="example-inserting-into-a-database" >Example: Inserting into a database
 &lt;span>
