@@ -1,6 +1,6 @@
 baseURL = "https://alexheretic.github.io"
 languageCode = "en-gb"
-title = "alexheretic posts"
+title = "alex posts"
 theme = "anubis"
 paginate = 10
 # disqusShortname: "yourdiscussshortname"
