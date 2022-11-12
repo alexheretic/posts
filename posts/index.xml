@@ -1,4 +1,340 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on alex posts</title><link>https://alexheretic.github.io/posts/</link><description>alex posts (Posts)</description><generator>Hugo -- gohugo.io</generator><language>en-gb</language><lastBuildDate>Fri, 22 Jul 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://alexheretic.github.io/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>ab-av1: Letting other encoders in to the party</title><link>https://alexheretic.github.io/posts/ab-av1-2/</link><pubDate>Fri, 22 Jul 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/ab-av1-2/</guid><description>&lt;p>Since &lt;a href="https://alexheretic.github.io/posts/ab-av1">posting about ab-av1&lt;/a> I&amp;rsquo;ve been improving the tool. v0.2.0 brought support for automatic key interval setting, arbitrary svt-av1 arguments, configurable vfilters &amp;amp; pixel format. Later in v0.3.0 I improved VMAF with automatic model selection &amp;amp; automatic upscaling to the selected model.&lt;/p>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on alex posts</title><link>https://alexheretic.github.io/posts/</link><description>alex posts (Posts)</description><generator>Hugo -- gohugo.io</generator><language>en-gb</language><lastBuildDate>Sat, 12 Nov 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://alexheretic.github.io/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>Getting rustc to use AVX2 SIMD</title><link>https://alexheretic.github.io/posts/auto-avx2/</link><pubDate>Sat, 12 Nov 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/auto-avx2/</guid><description>&lt;p>SIMD roughly means CPU instructions that do multiple things at once. Making use of them can make algorithms faster. The rust compiler actually uses them automatically, but it &lt;em>doesn&amp;rsquo;t&lt;/em> for newer SIMD instructions like SSE4.2 &amp;amp; AVX2.&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>SIMD Feature&lt;/th>
+&lt;th>Coverage&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>SSE2&lt;/td>
+&lt;td>100%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>SSE4.2&lt;/td>
+&lt;td>99.1%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>AVX2&lt;/td>
+&lt;td>89.2%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>AVX512F&lt;/td>
+&lt;td>8.73%&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;em>Steam survey October 2022&lt;/em>&lt;/p>
+&lt;p>Rustc can&amp;rsquo;t use them by default because not every CPU will work with them. But these days most CPUs &lt;em>do&lt;/em> support these newer instructions and so certain tasks can be a &lt;strong>lot&lt;/strong> faster for a lot of people.&lt;/p>
+&lt;h2 id="what-code-can-be-optimised" >What code can be optimised?
+&lt;span>
+&lt;a href="#what-code-can-be-optimised">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>Without a good understanding of SIMD it can be hard to know what kind of tasks should benefit, but at a high level what I look for is &lt;strong>loops with maths in the middle&lt;/strong>. If we&amp;rsquo;re looping over a load of data and doing maths there&amp;rsquo;s a chance this could be vectorized, which means the data gets packed together and requires lower total number of SIMD instructions to reach the same result.&lt;/p>
+&lt;p>For example my crate &lt;a href="https://github.com/alexheretic/ab-glyph/tree/main/rasterizer">ab_glyph_rasterizer&lt;/a> rasterization logic I know is an expensive operation. This involves drawing a font glyph&amp;rsquo;s outline onto a 2d coverage grid. There are some loops with maths in the middle there so &lt;em>can rustc make it faster on my CPU?&lt;/em>&lt;/p>
+&lt;h2 id="benchmarking" >Benchmarking
+&lt;span>
+&lt;a href="#benchmarking">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>My first step to optimising code is to write a benchmark. Optimising is &lt;em>hard&lt;/em>. A benchmark can tell you if an optimisation has actually worked. This is important as optimisations often bloat the code and make it less readable in the name of performance, so you really should be proving that the performance has improved!&lt;/p>
+&lt;p>I already had some benches for &lt;em>ab_glyph_rasterizer&lt;/em> so lets fire one up using default rustc settings.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>$ cargo bench --bench rasterize rasterize_outline_ttf_biohazard -- --save-baseline default
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rasterize_outline_ttf_biohazard
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> time: &lt;span style="color:#f92672">[&lt;/span>18.383 µs 18.385 µs 18.388 µs&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;div style="font-size:1000%;line-height:100%;">☣&lt;/div>
+&lt;p>So rasterizing a 294x269px biohazard glyph on my 5800x takes &lt;strong>~18.4µs&lt;/strong>.&lt;/p>
+&lt;blockquote>
+&lt;p>Aside: Writing benchmarks is also hard. I ran mine 4 times and got 19.3µs, 18.8µs, 18.5µs, 18.4µs so I&amp;rsquo;ll need to take the noise into account before I start celebrating a win that was just noise.&lt;/p>
+&lt;/blockquote>
+&lt;p>The cool thing about having a benchmark is we can start investigating if SIMD is going to help us &lt;strong>without writing any clever code&lt;/strong>.&lt;/p>
+&lt;h2 id="benching-with-target-cpunative" >Benching with target-cpu=native
+&lt;span>
+&lt;a href="#benching-with-target-cpunative">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>I can tell rustc to use all the SIMD instructions my CPU supports and benchmark again.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>$ RUSTFLAGS&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#39;-C target-cpu=native&amp;#39;&lt;/span> cargo bench --bench rasterize rasterize_outline_ttf_biohazard -- --baseline default
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rasterize_outline_ttf_biohazard
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> time: &lt;span style="color:#f92672">[&lt;/span>14.224 µs 14.242 µs 14.264 µs&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> change: &lt;span style="color:#f92672">[&lt;/span>-22.094% -21.920% -21.752%&lt;span style="color:#f92672">]&lt;/span> &lt;span style="color:#f92672">(&lt;/span>p &lt;span style="color:#f92672">=&lt;/span> 0.00 &amp;lt; 0.05&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>We can draw the same glyph in &lt;strong>~14.2µs&lt;/strong> now. A nice speedup for no extra code! This is an indication that the code we&amp;rsquo;re benchmarking could benefit from auto-vectorization.&lt;/p>
+&lt;p>We can also try to generalize a bit. Lets try just enabling AVX2 since I know that&amp;rsquo;s one of the newest SIMD features my CPU supports.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>$ RUSTFLAGS&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#39;-C target-feature=+avx2&amp;#39;&lt;/span> cargo bench --bench rasterize rasterize_outline_ttf_biohazard -- --baseline default
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rasterize_outline_ttf_biohazard
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> time: &lt;span style="color:#f92672">[&lt;/span>14.412 µs 14.419 µs 14.427 µs&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> change: &lt;span style="color:#f92672">[&lt;/span>-21.843% -21.726% -21.613%&lt;span style="color:#f92672">]&lt;/span> &lt;span style="color:#f92672">(&lt;/span>p &lt;span style="color:#f92672">=&lt;/span> 0.00 &amp;lt; 0.05&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>So we get pretty much the same benefit by simply enabling AVX2.&lt;/p>
+&lt;p>But we&amp;rsquo;re not done. If I compile, for example, my game with &lt;code>RUSTFLAGS='-C target-feature=+avx2'&lt;/code> it will be faster. But it will also stop working for ~11% of my game&amp;rsquo;s players, which is obviously not ok. We want to enable AVX2 for CPUs that support it and use the old code for everyone else.&lt;/p>
+&lt;h2 id="targeting-the-functions-to-auto-vectorize" >Targeting the functions to auto-vectorize
+&lt;span>
+&lt;a href="#targeting-the-functions-to-auto-vectorize">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>As a first step to runtime enabling AVX2 I started looking for particular functions that I&amp;rsquo;d like to auto-vectorize. I found &lt;a href="https://github.com/alexheretic/ab-glyph/blob/65064cf8d21affe27cce0e23535bc9a8cb02e8a4/rasterizer/src/raster.rs#L97">&lt;code>Rasterizer::draw_line&lt;/code>&lt;/a> which is the core fn for this task and it has loop with tons of maths inside.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">impl&lt;/span> Rasterizer {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">pub&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">/* maths-loops */&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">..&lt;/span>.
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>We can instruct rustc to compile this using AVX2.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[target_feature(enable = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;avx2&amp;#34;&lt;/span>&lt;span style="color:#75715e">)]&lt;/span> &lt;span style="color:#75715e">// doesn&amp;#39;t compile!
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">&lt;/span>&lt;span style="color:#66d9ef">pub&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This doesn&amp;rsquo;t work because:&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;code>#[target_feature(..)]&lt;/code> can only be applied to &lt;code>unsafe&lt;/code> functions&lt;/p>
+&lt;/blockquote>
+&lt;p>Actually that makes sense, after all it won&amp;rsquo;t work on all CPUs. Lets just do it anyway.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">pub&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">unsafe&lt;/span> { self.draw_line_avx2(p0, p1) }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[target_feature(enable = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;avx2&amp;#34;&lt;/span>&lt;span style="color:#75715e">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">unsafe&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line_avx2&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">/* maths-loops */&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Now we&amp;rsquo;ve enabled AVX2 for this function we can bench again without any RUSTFLAGS.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>$ cargo bench --bench rasterize rasterize_outline_ttf_biohazard -- --baseline default
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rasterize_outline_ttf_biohazard
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> time: &lt;span style="color:#f92672">[&lt;/span>14.273 µs 14.276 µs 14.280 µs&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> change: &lt;span style="color:#f92672">[&lt;/span>-22.566% -22.456% -22.352%&lt;span style="color:#f92672">]&lt;/span> &lt;span style="color:#f92672">(&lt;/span>p &lt;span style="color:#f92672">=&lt;/span> 0.00 &amp;lt; 0.05&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>So indeed this function is the place to be SIMD-ing! We&amp;rsquo;re still not there yet though since the change &lt;em>still&lt;/em> breaks any non-AVX2 CPU.&lt;/p>
+&lt;h2 id="runtime-detection" >Runtime detection
+&lt;span>
+&lt;a href="#runtime-detection">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>We could wrap this optimisation in a compile time feature. But it isn&amp;rsquo;t usually very useful to do so. All usage of this dependency would have to wire up the feature and ultimately something like my game would need a single binary to work for many different CPU feature levels.&lt;/p>
+&lt;p>What we want is runtime detection. We can do that with &lt;strong>&lt;a href="https://doc.rust-lang.org/std/macro.is_x86_feature_detected.html">std::is_x86_feature_detected&lt;/a>&lt;/strong>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">pub&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">if&lt;/span> is_x86_feature_detected!(&lt;span style="color:#e6db74">&amp;#34;avx2&amp;#34;&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">unsafe&lt;/span> { self.draw_line_avx2(p0, p1) }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> } &lt;span style="color:#66d9ef">else&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> self.draw_line_scalar(p0, p1)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[target_feature(enable = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;avx2&amp;#34;&lt;/span>&lt;span style="color:#75715e">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">unsafe&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line_avx2&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">/* maths-loops */&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line_scalar&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">/* the same maths-loops */&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Now we&amp;rsquo;re actually getting somewhere. Our code is actually safe so should work everywhere.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>$ cargo bench --bench rasterize rasterize_outline_ttf_biohazard -- --baseline default
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rasterize_outline_ttf_biohazard
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> time: &lt;span style="color:#f92672">[&lt;/span>14.415 µs 14.419 µs 14.424 µs&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> change: &lt;span style="color:#f92672">[&lt;/span>-21.784% -21.665% -21.553%&lt;span style="color:#f92672">]&lt;/span> &lt;span style="color:#f92672">(&lt;/span>p &lt;span style="color:#f92672">=&lt;/span> 0.00 &amp;lt; 0.05&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Benching the code shows we&amp;rsquo;re still getting the benefit.&lt;/p>
+&lt;h2 id="inlining" >Inlining
+&lt;span>
+&lt;a href="#inlining">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>One issue with this version however is the bulk of my code, the loops, has been duplicated. So there&amp;rsquo;s a bunch more code. We can fix this fairly easily with inlining.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">pub&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">if&lt;/span> is_x86_feature_detected!(&lt;span style="color:#e6db74">&amp;#34;avx2&amp;#34;&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">unsafe&lt;/span> { self.draw_line_avx2(p0, p1) }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> } &lt;span style="color:#66d9ef">else&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> self.draw_line_scalar(p0, p1)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[target_feature(enable = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;avx2&amp;#34;&lt;/span>&lt;span style="color:#75715e">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">unsafe&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line_avx2&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> self.draw_line_scalar(p0, p1)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[inline(always)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line_scalar&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">/* maths-loops */&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This did look kinda funny to me the first time. The implementation of &lt;code>draw_line_avx2&lt;/code> is just calling &lt;code>draw_line_scalar&lt;/code>. It looks a bit pointless from a logical point of view, but this is for the compiler rather than for us. Note &lt;code>#[inline(always)]&lt;/code> is important because we need rustc to duplicate the compilation to get 2 compiled versions of draw-line, one with AVX2 instructions.&lt;/p>
+&lt;p>Now we have a legit optimisation to the code. Not too much extra code, just some feature detection wiring and inlining.&lt;/p>
+&lt;h2 id="optimising-feature-detection--sse42" >Optimising feature detection &amp;amp; SSE4.2
+&lt;span>
+&lt;a href="#optimising-feature-detection--sse42">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>An issue you may have spotted with the latest code is we call &lt;code>is_x86_feature_detected&lt;/code> every time &lt;code>draw_line&lt;/code> is called. Tbf the benchmark is showing this isn&amp;rsquo;t a huge deal, but its still unnecessary. If we wanted to add more SIMD feature levels we&amp;rsquo;d be calling &lt;code>is_x86_feature_detected&lt;/code> perhaps multiple times too.&lt;/p>
+&lt;p>Talking of SIMD levels, SSE4.2 is supported by almost everyone, so lets try that.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>$ cargo bench --bench rasterize rasterize_outline_ttf_biohazard -- --baseline default
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rasterize_outline_ttf_biohazard
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> time: &lt;span style="color:#f92672">[&lt;/span>15.143 µs 15.148 µs 15.154 µs&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> change: &lt;span style="color:#f92672">[&lt;/span>-17.860% -17.746% -17.633%&lt;span style="color:#f92672">]&lt;/span> &lt;span style="color:#f92672">(&lt;/span>p &lt;span style="color:#f92672">=&lt;/span> 0.00 &amp;lt; 0.05&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>SSE4.2 provides a great speedup, not quite as effective as AVX2 but definitely worth having for those without the newer instruction.&lt;/p>
+&lt;p>We can do feature detection, including SSE4.2, earlier saving the best function path to use and just calling that pointer in &lt;code>draw_line&lt;/code>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">type&lt;/span> &lt;span style="color:#a6e22e">DrawLineFn&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#66d9ef">unsafe&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> Rasterizer, Point, Point);
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">impl&lt;/span> Rasterizer {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">pub&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">new&lt;/span>(width: &lt;span style="color:#66d9ef">usize&lt;/span>, height: &lt;span style="color:#66d9ef">usize&lt;/span>) -&amp;gt; &lt;span style="color:#a6e22e">Self&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">// runtime detect optimal simd impls
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">&lt;/span> &lt;span style="color:#66d9ef">let&lt;/span> draw_line_fn: &lt;span style="color:#a6e22e">DrawLineFn&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#66d9ef">if&lt;/span> is_x86_feature_detected!(&lt;span style="color:#e6db74">&amp;#34;avx2&amp;#34;&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> draw_line_avx2
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> } &lt;span style="color:#66d9ef">else&lt;/span> &lt;span style="color:#66d9ef">if&lt;/span> is_x86_feature_detected!(&lt;span style="color:#e6db74">&amp;#34;sse4.2&amp;#34;&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> draw_line_sse4_2
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> } &lt;span style="color:#66d9ef">else&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Self::draw_line_scalar
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> };
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Self {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> width,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> height,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> a: &lt;span style="color:#a6e22e">vec&lt;/span>&lt;span style="color:#f92672">!&lt;/span>[&lt;span style="color:#ae81ff">0.0&lt;/span>; width &lt;span style="color:#f92672">*&lt;/span> height &lt;span style="color:#f92672">+&lt;/span> &lt;span style="color:#ae81ff">4&lt;/span>],
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> draw_line_fn,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">pub&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">unsafe&lt;/span> { (self.draw_line_fn)(self, p0, p1) }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">#[inline(always)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line_scalar&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">/* maths-loops */&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[target_feature(enable = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;avx2&amp;#34;&lt;/span>&lt;span style="color:#75715e">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">unsafe&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line_avx2&lt;/span>(rast: &lt;span style="color:#66d9ef">&amp;amp;&lt;/span>&lt;span style="color:#a6e22e">mut&lt;/span> Rasterizer, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> rast.draw_line_scalar(p0, p1)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[target_feature(enable = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;sse4.2&amp;#34;&lt;/span>&lt;span style="color:#75715e">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">unsafe&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line_sse4_2&lt;/span>(rast: &lt;span style="color:#66d9ef">&amp;amp;&lt;/span>&lt;span style="color:#a6e22e">mut&lt;/span> Rasterizer, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> rast.draw_line_scalar(p0, p1)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Now when calling &lt;code>Rasterizer::new&lt;/code> we&amp;rsquo;ll pick an AVX2 draw-line fn or a SSE4.2 fn or, if neither are supported, the default scaler code. Now we have 3 compiled versions of this function selected during runtime providing almost everyone with more optimal performance and breaking no-one.&lt;/p>
+&lt;blockquote>
+&lt;p>It would be cool to use &lt;a href="https://github.com/matklad/once_cell">once_cell&lt;/a> for this so the function was picked just once. But in my case I wanted to avoid dependencies for this crate. I&amp;rsquo;d love once_cell to be in std!&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="no_std--non-x86-compatibility" >no_std &amp;amp; non-x86 compatibility
+&lt;span>
+&lt;a href="#no_std--non-x86-compatibility">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>My CPU and my optimisations are targeting x86_64 arch. However, &lt;em>ab_glyph_rasterizer&lt;/em> is used on other CPUs and in no_std environments.&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>#[target_feature(enable = &amp;quot;avx2&amp;quot;)]&lt;/code> doesn&amp;rsquo;t compile outside x86/x86_64&lt;/li>
+&lt;li>&lt;code>is_x86_feature_detected!&lt;/code> is in std, not available for no_std.&lt;/li>
+&lt;/ul>
+&lt;p>I&amp;rsquo;ve made my code work for all x86 &amp;amp; x86_64 CPUs but broken compilation elsewhere :(&lt;/p>
+&lt;p>We can fix this with more conditional compilation.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">impl&lt;/span> Rasterizer {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">pub&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">new&lt;/span>(width: &lt;span style="color:#66d9ef">usize&lt;/span>, height: &lt;span style="color:#66d9ef">usize&lt;/span>) -&amp;gt; &lt;span style="color:#a6e22e">Self&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">// runtime detect optimal simd impls
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">&lt;/span> &lt;span style="color:#75715e">#[cfg(all(feature = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;std&amp;#34;&lt;/span>&lt;span style="color:#75715e">, any(target_arch = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;x86&amp;#34;&lt;/span>&lt;span style="color:#75715e">, target_arch = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;x86_64&amp;#34;&lt;/span>&lt;span style="color:#75715e">)))]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">let&lt;/span> draw_line_fn: &lt;span style="color:#a6e22e">DrawLineFn&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#66d9ef">if&lt;/span> is_x86_feature_detected!(&lt;span style="color:#e6db74">&amp;#34;avx2&amp;#34;&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> draw_line_avx2
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> } &lt;span style="color:#66d9ef">else&lt;/span> &lt;span style="color:#66d9ef">if&lt;/span> is_x86_feature_detected!(&lt;span style="color:#e6db74">&amp;#34;sse4.2&amp;#34;&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> draw_line_sse4_2
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> } &lt;span style="color:#66d9ef">else&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Self::draw_line_scalar
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> };
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">#[cfg(any(
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"> not(feature = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;std&amp;#34;&lt;/span>&lt;span style="color:#75715e">),
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"> not(any(target_arch = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;x86&amp;#34;&lt;/span>&lt;span style="color:#75715e">, target_arch = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;x86_64&amp;#34;&lt;/span>&lt;span style="color:#75715e">))
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"> ))]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">let&lt;/span> draw_line_fn: &lt;span style="color:#a6e22e">DrawLineFn&lt;/span> &lt;span style="color:#f92672">=&lt;/span> Self::draw_line_scalar;
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Self {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> width,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> height,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> a: &lt;span style="color:#a6e22e">vec&lt;/span>&lt;span style="color:#f92672">!&lt;/span>[&lt;span style="color:#ae81ff">0.0&lt;/span>; width &lt;span style="color:#f92672">*&lt;/span> height &lt;span style="color:#f92672">+&lt;/span> &lt;span style="color:#ae81ff">4&lt;/span>],
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> draw_line_fn,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">// draw_line, draw_line_scalar unchanged
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">&lt;/span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[cfg(all(feature = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;std&amp;#34;&lt;/span>&lt;span style="color:#75715e">, any(target_arch = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;x86&amp;#34;&lt;/span>&lt;span style="color:#75715e">, target_arch = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;x86_64&amp;#34;&lt;/span>&lt;span style="color:#75715e">)))]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[target_feature(enable = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;avx2&amp;#34;&lt;/span>&lt;span style="color:#75715e">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">unsafe&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line_avx2&lt;/span>(rast: &lt;span style="color:#66d9ef">&amp;amp;&lt;/span>&lt;span style="color:#a6e22e">mut&lt;/span> Rasterizer, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> rast.draw_line_scalar(p0, p1)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[cfg(all(feature = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;std&amp;#34;&lt;/span>&lt;span style="color:#75715e">, any(target_arch = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;x86&amp;#34;&lt;/span>&lt;span style="color:#75715e">, target_arch = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;x86_64&amp;#34;&lt;/span>&lt;span style="color:#75715e">)))]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#[target_feature(enable = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;sse4.2&amp;#34;&lt;/span>&lt;span style="color:#75715e">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">unsafe&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line_sse4_2&lt;/span>(rast: &lt;span style="color:#66d9ef">&amp;amp;&lt;/span>&lt;span style="color:#a6e22e">mut&lt;/span> Rasterizer, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> rast.draw_line_scalar(p0, p1)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Finally we&amp;rsquo;re up to date with where &lt;a href="https://github.com/alexheretic/ab-glyph/blob/main/rasterizer/src/raster.rs">&lt;em>ab_glyph_rasterizer&lt;/em> is now&lt;/a>. We have AVX2 &amp;amp; SSE4.2 auto-vectorized versions of &lt;code>draw_line&lt;/code> while continuing to support no_std &amp;amp; non-x86.&lt;/p>
+&lt;p>In future it&amp;rsquo;ll be simple enough to add add paths for AVX512 and for other arch SIMD. These just require testing to prove they are worthwhile. My 5800x sadly does not support AVX512.&lt;/p>
+&lt;h2 id="an-easier-way-multiversion" >An easier way: multiversion
+&lt;span>
+&lt;a href="#an-easier-way-multiversion">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>Btw this concept of runtime selected pre-compiled optimised functions is called &lt;strong>multiversioning&lt;/strong>. And yes, there is a crate to help reduce the noise a bit. &lt;a href="https://github.com/calebzulawski/multiversion">multiversion&lt;/a> can help compress our code.&lt;/p>
+&lt;p>So lets go back to the start and optimise this function for AVX2 &amp;amp; SSE4.2 similarly to how we just did manually.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">impl&lt;/span> Rasterizer {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">pub&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">/* maths-loops */&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;code>cargo add multiversion&lt;/code>&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-rust" data-lang="rust">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">impl&lt;/span> Rasterizer {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">#[multiversion::multiversion]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">#[clone(target = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;[x86|x86_64]+avx2&amp;#34;&lt;/span>&lt;span style="color:#75715e">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">#[clone(target = &lt;/span>&lt;span style="color:#e6db74">&amp;#34;[x86|x86_64]+sse4.2&amp;#34;&lt;/span>&lt;span style="color:#75715e">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">pub&lt;/span> &lt;span style="color:#66d9ef">fn&lt;/span> &lt;span style="color:#a6e22e">draw_line&lt;/span>(&lt;span style="color:#f92672">&amp;amp;&lt;/span>&lt;span style="color:#66d9ef">mut&lt;/span> self, p0: &lt;span style="color:#a6e22e">Point&lt;/span>, p1: &lt;span style="color:#a6e22e">Point&lt;/span>) {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">/* maths-loops */&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Instead of the manual impl we use 3 lines of proc-macro DSL.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>$ cargo bench --bench rasterize rasterize_outline_ttf_biohazard -- --baseline default
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rasterize_outline_ttf_biohazard
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> time: &lt;span style="color:#f92672">[&lt;/span>14.479 µs 14.482 µs 14.485 µs&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> change: &lt;span style="color:#f92672">[&lt;/span>-21.446% -21.335% -21.230%&lt;span style="color:#f92672">]&lt;/span> &lt;span style="color:#f92672">(&lt;/span>p &lt;span style="color:#f92672">=&lt;/span> 0.00 &amp;lt; 0.05&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>And it works (always worth checking!).&lt;/p>
+&lt;p>The expanded code seems to be equivalent to when we were doing simple &lt;code>if is_x86_feature_detected!&lt;/code> inside &lt;code>draw_line&lt;/code> fn. We don&amp;rsquo;t have the same control over the feature detection to optimise it. Another issue here is that example is no longer no_std compatible, but it should be possible to do so by sprinkling the required conditional compilation flags.&lt;/p>
+&lt;p>&lt;a href="https://github.com/calebzulawski/multiversion">multiversion&lt;/a> seems a pretty nice way to introduce runtime selected auto-vectorization to your code with minimal noise.&lt;/p>
+&lt;blockquote>
+&lt;p>Note: For &lt;em>ab_glyph_rasterizer&lt;/em> I kept a manual implementation, primarily to keep &lt;em>ab_glyph_rasterizer&lt;/em> at zero dependencies.&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="hand-written-simd" >Hand-written SIMD
+&lt;span>
+&lt;a href="#hand-written-simd">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>I find the auto-vectorized code to be fairly easy to maintain as there isn&amp;rsquo;t any new &amp;ldquo;logic&amp;rdquo; bits to handle, just conditional compilation to wrangle. Writing the SIMD intrinsics by hand is much harder and more difficult to maintain.&lt;/p>
+&lt;p>On the other hand, reading &lt;a href="https://www.nickwilcox.com/blog/autovec2/">Nick Wilcox&amp;rsquo;s Auto-Vectorization for Newer Instruction Sets in Rust&lt;/a> we can see it can also yield significantly better results. Try it if you dare!&lt;/p>
+&lt;h2 id="conclusion" >Conclusion
+&lt;span>
+&lt;a href="#conclusion">
+&lt;svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg">&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/>&lt;/svg>
+&lt;/a>
+&lt;/span>
+&lt;/h2>&lt;p>To summarize: If you want to SIMD optimise some code:&lt;/p>
+&lt;ul>
+&lt;li>Write a benchmark.&lt;/li>
+&lt;li>Try vs &lt;code>RUSTFLAGS='-C target-cpu=native'&lt;/code>.&lt;/li>
+&lt;li>If that&amp;rsquo;s promising, try targeting functions with &lt;code>#[target_feature&lt;/code>&lt;/li>
+&lt;li>If that works, try properly multiversioning either manually or with the crate.&lt;/li>
+&lt;/ul>
+&lt;p>Good luck optimising, lets make the most of our CPUs!&lt;/p></description></item><item><title>ab-av1: Letting other encoders in to the party</title><link>https://alexheretic.github.io/posts/ab-av1-2/</link><pubDate>Fri, 22 Jul 2022 00:00:00 +0000</pubDate><guid>https://alexheretic.github.io/posts/ab-av1-2/</guid><description>&lt;p>Since &lt;a href="https://alexheretic.github.io/posts/ab-av1">posting about ab-av1&lt;/a> I&amp;rsquo;ve been improving the tool. v0.2.0 brought support for automatic key interval setting, arbitrary svt-av1 arguments, configurable vfilters &amp;amp; pixel format. Later in v0.3.0 I improved VMAF with automatic model selection &amp;amp; automatic upscaling to the selected model.&lt;/p>
 &lt;p>When I found myself wanting to encode in an older format (e.g. x264/x265) to target somewhere without as good av1 support, I really missed not being able to use ab-av1&amp;rsquo;s &lt;em>auto-encode&lt;/em> / &lt;em>crf-search&lt;/em>. So &lt;a href="https://github.com/alexheretic/ab-av1/blob/main/CHANGELOG.md#v040">&lt;strong>v0.4.0&lt;/strong>&lt;/a> is now available has new option &lt;code>--encoder&lt;/code>/&lt;code>-e&lt;/code> which can override the default svt-av1 encoder to use any ffmpeg encoder instead.&lt;/p>
 &lt;p>This opens the doors to a world of fast crf searching &amp;amp; auto encoding with any video encoder you like.&lt;/p>
 &lt;h2 id="examples" >Examples
