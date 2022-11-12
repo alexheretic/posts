@@ -65,6 +65,10 @@ id = "github"
 name = "alexheretic"
 
 [[params.social]]
+id = "mastodon"
+url = "https://fosstodon.org/@alexbigab"
+
+[[params.social]]
 id = "twitter"
 name = "alexbigab"
 
