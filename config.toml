@@ -68,9 +68,9 @@ name = "alexheretic"
 id = "mastodon"
 url = "https://fosstodon.org/@alexbigab"
 
-[[params.social]]
-id = "twitter"
-name = "alexbigab"
+# [[params.social]]
+# id = "twitter"
+# name = "alexbigab"
 
 [markup.goldmark.renderer]
 unsafe = true
