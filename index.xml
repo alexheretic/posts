@@ -225,6 +225,7 @@
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Now when calling &lt;code>Rasterizer::new&lt;/code> we&amp;rsquo;ll pick an AVX2 draw-line fn or a SSE4.2 fn or, if neither are supported, the default scaler code. Now we have 3 compiled versions of this function selected during runtime providing almost everyone with more optimal performance and breaking no-one.&lt;/p>
 &lt;blockquote>
 &lt;p>It would be cool to use &lt;a href="https://github.com/matklad/once_cell">once_cell&lt;/a> for this so the function was picked just once. But in my case I wanted to avoid dependencies for this crate. I&amp;rsquo;d love once_cell to be in std!&lt;/p>
+&lt;p>&lt;em>Update 2023-01-12: This can also be done without additional dependencies using &lt;code>std::sync::Once&lt;/code>. See &lt;a href="https://github.com/alexheretic/ab-glyph/pull/71">ab-glyph#71&lt;/a>.&lt;/em>&lt;/p>
 &lt;/blockquote>
 &lt;h2 id="no_std--non-x86-compatibility" >no_std &amp;amp; non-x86 compatibility
 &lt;span>
