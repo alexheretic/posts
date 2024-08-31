@@ -30,8 +30,7 @@ $ cargo bench --bench rasterize rasterize_outline_ttf_biohazard -- --save-baseli
 rasterize_outline_ttf_biohazard
         time:   [18.383 µs 18.385 µs 18.388 µs]
 ```
-
-<div style="font-size:1000%;line-height:100%;">☣</div>
+![](biohazard-180px.png "biohazard glyph")
 
 So rasterizing a 294x269px biohazard glyph on my 5800x takes **~18.4µs**.
 
