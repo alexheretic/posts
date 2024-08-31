@@ -47,7 +47,7 @@
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rasterize_outline_ttf_biohazard
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> time: &lt;span style="color:#f92672">[&lt;/span>18.383 µs 18.385 µs 18.388 µs&lt;span style="color:#f92672">]&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;div style="font-size:1000%;line-height:100%;">☣&lt;/div>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img src="biohazard-180px.png" alt="" title="biohazard glyph">&lt;/p>
 &lt;p>So rasterizing a 294x269px biohazard glyph on my 5800x takes &lt;strong>~18.4µs&lt;/strong>.&lt;/p>
 &lt;blockquote>
 &lt;p>Aside: Writing benchmarks is also hard. I ran mine 4 times and got 19.3µs, 18.8µs, 18.5µs, 18.4µs so I&amp;rsquo;ll need to take the noise into account before I start celebrating a win that was just noise.&lt;/p>
